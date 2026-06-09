@@ -22,6 +22,10 @@ const app = express();
 // Trust the proxy (like Vercel or AWS) so rate limiting works correctly
 app.set('trust proxy', 1);
 
+// Connect to MongoDB here so serverless environments don't bypass it
+const { connectDB } = require('./config/db');
+connectDB();
+
 /* ─── Security & Parsing ─────────────────────────── */
 app.use(helmet());
 app.use(cors({
