@@ -1,18 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-const { sendOtp, verifyOtp, completeProfile } = require('./auth.controller');
-const { sendOtpValidation, verifyOtpValidation, completeProfileValidation } = require('./auth.validation');
-const { verifyToken } = require('../../middleware/auth.middleware');
-const { otpLimiter } = require('../../middleware/rateLimiter');
+const { register, login } = require('./auth.controller');
+const { registerValidation, loginValidation } = require('./auth.validation');
 
-// POST /api/auth/send-otp
-router.post('/send-otp', otpLimiter, sendOtpValidation, sendOtp);
+// POST /api/auth/register
+router.post('/register', registerValidation, register);
 
-// POST /api/auth/verify-otp
-router.post('/verify-otp', verifyOtpValidation, verifyOtp);
-
-// POST /api/auth/complete-profile  (protected)
-router.post('/complete-profile', verifyToken, completeProfileValidation, completeProfile);
+// POST /api/auth/login
+router.post('/login', loginValidation, login);
 
 module.exports = router;

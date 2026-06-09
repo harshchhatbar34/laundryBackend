@@ -1,9 +1,7 @@
 require('dotenv').config();
 const http = require('http');
-const { Server } = require('socket.io');
 const app = require('./app');
 const { connectDB } = require('./config/db');
-const { initSocket } = require('./socket');
 const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 5000;
@@ -15,19 +13,6 @@ const start = async () => {
   // Create HTTP server
   const server = http.createServer(app);
 
-  // Attach Socket.io
-  const io = new Server(server, {
-    cors: {
-      origin: '*',
-      methods: ['GET', 'POST'],
-    },
-  });
-
-  // Make io accessible in routes/services via app.locals
-  app.locals.io = io;
-
-  // Initialise socket handlers
-  initSocket(io);
 
   server.listen(PORT, () => {
     logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);

@@ -69,16 +69,7 @@ const driverUpdateStatus = async (req, res, next) => {
   try {
     const { status, note } = req.body;
     const order = await driverUpdateOrderStatus(req.params.id, req.user._id, status, note);
-    // Emit real-time update via socket
-    const io = req.app.locals.io;
-    if (io) {
-      const { emitOrderUpdate, emitNotification } = require('../../socket');
-      emitOrderUpdate(io, order._id.toString(), { order, status });
-      emitNotification(io, order.user.toString(), {
-        title: `Order ${order.orderNumber} Update`,
-        body: note || `Your order is now: ${status}`,
-      });
-    }
+
     sendSuccess(res, 200, 'Order status updated', { order });
   } catch (e) { next(e); }
 };
@@ -89,18 +80,7 @@ const driverUpdateLocation = async (req, res, next) => {
     await User.findByIdAndUpdate(req.user._id, {
       $set: { 'currentLocation.lat': lat, 'currentLocation.lng': lng, 'currentLocation.updatedAt': new Date() },
     });
-    // Broadcast location to any orders this driver has in-flight
-    const io = req.app.locals.io;
-    if (io) {
-      const Order = require('./order.model');
-      const activeOrders = await Order.find({
-        driver: req.user._id,
-        status: { $in: ['pickup', 'out_delivery'] },
-      }).select('_id');
-      activeOrders.forEach((o) => {
-        io.to(`order:${o._id}`).emit('driver_location', { lat, lng, driverId: req.user._id });
-      });
-    }
+
     sendSuccess(res, 200, 'Location updated');
   } catch (e) { next(e); }
 };
