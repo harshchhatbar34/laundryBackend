@@ -25,7 +25,7 @@ app.set('trust proxy', 1);
 /* ─── Security & Parsing ─────────────────────────── */
 app.use(helmet());
 app.use(cors({
-  origin: '*',
+  origin: true, // Dynamically reflects the incoming origin
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
