@@ -14,11 +14,12 @@ const addressSchema = new mongoose.Schema(
       default: 'Home',
     },
 
-    buildingVilla: { type: String, required: true, trim: true },
-    apartmentNo: { type: String, trim: true, default: '' },
-    area: { type: String, required: true, trim: true },
-    emirate: { type: String, required: true, trim: true, default: 'Dubai' },
-    makani: { type: String, trim: true, default: '' },
+    flatHouseNo: { type: String, required: true, trim: true },
+    society: { type: String, required: true, trim: true },
+    landmark: { type: String, trim: true, default: '' },
+    pincode: { type: String, required: true, trim: true },
+    city: { type: String, required: true, trim: true },
+    state: { type: String, required: true, trim: true },
     isDefault: {
       type: Boolean,
       default: false,
