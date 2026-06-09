@@ -1,6 +1,6 @@
-import { connectDB } from '../../../../../lib/db';
-import { sendSuccess, sendError } from '../../../../../lib/apiResponse';
-import Price from '../../../../../src/modules/service/price.model';
+import { connectDB } from '../../../../lib/db';
+import { sendSuccess, sendError } from '../../../../lib/apiResponse';
+import Price from '../../../../src/modules/service/price.model';
 
 export async function GET(req) {
   try {
