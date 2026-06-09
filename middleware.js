@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 export function middleware(req) {
+  // Log every incoming API request to Vercel
+  if (req.method !== 'OPTIONS') {
+    console.log(`[REQ] ${req.method} ${req.nextUrl.pathname}`);
+  }
+
   // Dynamically reflect the incoming origin (acts as a wildcard but allows credentials)
   const origin = req.headers.get("origin") ?? "*";
 
