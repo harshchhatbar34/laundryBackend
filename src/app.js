@@ -22,7 +22,7 @@ const app = express();
 /* ─── Security & Parsing ─────────────────────────── */
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || '*',
+  origin: '*',
   credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));

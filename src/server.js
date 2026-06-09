@@ -18,7 +18,7 @@ const start = async () => {
   // Attach Socket.io
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_ORIGIN || '*',
+      origin: '*',
       methods: ['GET', 'POST'],
     },
   });
