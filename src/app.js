@@ -19,6 +19,9 @@ const masterRoutes = require('./modules/service/master.routes');
 
 const app = express();
 
+// Trust the proxy (like Vercel or AWS) so rate limiting works correctly
+app.set('trust proxy', 1);
+
 /* ─── Security & Parsing ─────────────────────────── */
 app.use(helmet());
 app.use(cors({
