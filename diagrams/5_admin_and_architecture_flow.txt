@@ -1,0 +1,39 @@
+flowchart TD
+    classDef admin fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px;
+    classDef owner fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    classDef user fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
+    classDef system fill:#eceff1,stroke:#607d8b,stroke-width:2px;
+
+    subgraph "Admin Operations"
+        A1(Super Admin Logs In) --> A2(Create Laundry Owner Account)
+        A2 --> A3(Generate Unique Referral/Tenant Code)
+        A3 --> A4(Link Code to Laundry Owner)
+        A4 --> A5(Build/Configure Frontend App with this Code)
+        A5 --> A6(Publish White-Label App to App Stores)
+    end
+    class A1,A2,A3,A4,A5,A6 admin;
+
+    subgraph "Laundry Owner Operations"
+        O1(Login to Owner Panel) --> O2(Add Multiple Shop Branches)
+        O2 --> O3(Manage Services for All Branches)
+    end
+    class O1,O2,O3 owner;
+    
+    A4 ==>|Provides Credentials to Owner| O1
+
+    subgraph "Customer (User) Registration & Usage"
+        U1(Download Owner's Custom App) --> U2(Register Account)
+        U2 --> S1[System reads Hardcoded App Code]
+        S1 --> S2[System Binds User permanently to this Owner]
+        
+        S2 --> U3(User opens Shop Finder)
+        U3 --> S3[System queries Database]
+        S3 --> S4[Returns ONLY branches belonging to this Owner]
+        S4 --> U4(User places order at Nearest Branch)
+    end
+    class U1,U2,U3,U4 user;
+    class S1,S2,S3,S4 system;
+
+    %% Interactions
+    A5 ==>|App Distributed to Users| U1
+    O2 -.->|Branches filtered by Owner| S3

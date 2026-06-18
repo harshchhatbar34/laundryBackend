@@ -1,0 +1,56 @@
+flowchart TD
+    classDef user fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
+    classDef owner fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+    classDef helper fill:#e8f5e9,stroke:#4caf50,stroke-width:2px;
+
+    subgraph "Customer (User)"
+        U1(Browse Live Shops & Add to Cart) --> U2(Place Order)
+        U2 -.-> U3(Wait for Confirmation)
+        U3 --> U4(Handover Clothes)
+        U4 --> U5(Receive 'Bill Updated' Alert)
+        U5 --> U6(Receive 'Out for Delivery' Alert)
+        U6 --> U7{Available?}
+        U7 -- No --> U8(Reschedule Delivery)
+        U7 -- Yes --> U9(Receive Clothes & Pay)
+        U9 --> U10(Submit Rating & Review)
+    end
+    class U1,U2,U3,U4,U5,U6,U7,U8,U9,U10 user;
+
+    subgraph "Laundry Shop Owner"
+        O1(Toggle Shop Live/Closed) --> O2(Receive Order Alert)
+        O2 --> O3{Accept Order?}
+        O3 -- Yes --> O4(Order Confirmed)
+        O4 --> O5(Review Completed Orders & Ratings)
+    end
+    class O1,O2,O3,O4,O5 owner;
+
+    subgraph "Laundry Shop Helper"
+        H1(Receive Order Alert) --> H2{Accept Order?}
+        H2 -- Yes --> H3(Order Confirmed)
+        H3 --> H4(Pick Up Clothes & Verify Bill)
+        H4 --> H5(Process Laundry & Mark 'Done')
+        H5 --> H6(Leave for Delivery)
+        H6 --> H7{Customer Available?}
+        H7 -- No --> H8(Mark Failed Delivery)
+        H7 -- Yes --> H9(Deliver & Collect Payment)
+        H9 --> H10(Mark Completed)
+    end
+    class H1,H2,H3,H4,H5,H6,H7,H8,H9,H10 helper;
+
+    %% Interactions
+    U2 ==>|Triggers Notification| O2
+    U2 ==>|Triggers Notification| H1
+    
+    O4 ==>|Sends Confirmation| U3
+    H3 ==>|Sends Confirmation| U3
+    
+    H4 ==>|Modifies Bill| U4
+    H4 ==>|Triggers Notification| U5
+    
+    H6 ==>|Triggers Notification| U6
+    H8 ==>|Prompts User| U8
+    U8 ==>|Updates App| H6
+    
+    H9 <==>|Exchanges Goods & Cash/UPI| U9
+    H10 ==>|System Prompt| U10
+    U10 -.->|Feeds back to| O5

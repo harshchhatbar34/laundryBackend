@@ -1,0 +1,27 @@
+flowchart TD
+    classDef helper fill:#e8f5e9,stroke:#4caf50,stroke-width:2px;
+
+    H1(Login to Helper App) --> H2(Receive New Order Notification)
+    H2 --> H3{Accept Order?}
+    H3 -- No --> H_ignore(Ignore / Let Owner Accept)
+    H3 -- Yes --> H4(Confirm Order)
+    
+    H4 --> H5(Navigate to User Address)
+    H5 --> H6(Pick Up Clothes from Customer)
+    H6 --> H7(Verify Item Count & Update Final Bill)
+    
+    H7 --> H8(Mark Order as 'Picked Up')
+    H8 --> H9(Set Expected Delivery Date & Time)
+    H9 --> H10(Process Laundry / Wash & Iron)
+    
+    H10 --> H11(Mark Work as 'Done / Ready')
+    H11 --> H12(Leave for Delivery & Mark 'Out for Delivery')
+    
+    H12 --> H13{Customer Available?}
+    H13 -- No --> H14(Mark 'Failed Delivery' & Wait for Reschedule) --> H12
+    H13 -- Yes --> H15(Deliver Clothes to Customer)
+    
+    H15 --> H16(Collect Payment via Cash/UPI)
+    H16 --> H17(Mark Order as 'Completed')
+
+    class H1,H2,H3,H_ignore,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,H14,H15,H16,H17 helper;

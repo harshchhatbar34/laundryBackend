@@ -1,0 +1,17 @@
+flowchart TD
+    classDef owner fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
+
+    O1(Login to Admin/Owner Panel) --> O2(Add & Manage Branches)
+    O2 --> O3(Define Custom Services & Custom Prices)
+    O3 --> O4(Toggle Shop Status: LIVE or CLOSED)
+    
+    O4 --> O5(Receive New Order Notification)
+    O5 --> O6{Accept Order?}
+    O6 -- No --> O_rej(Reject Order)
+    O6 -- Yes --> O7(Confirm Order)
+    
+    O7 --> O8(Track Helper Progress & Order Status)
+    O8 --> O9(Receive 'Order Completed' Notification)
+    O9 --> O10(Review Daily Sales & Customer Ratings)
+
+    class O1,O2,O3,O4,O5,O6,O_rej,O7,O8,O9,O10 owner;

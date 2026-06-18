@@ -1,0 +1,29 @@
+flowchart TD
+    classDef user fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
+
+    U1(Open App) --> U2{Is Nearest Shop Live/Open?}
+    U2 -- Yes --> U3(Browse Shop Services & Prices)
+    U2 -- No --> U_closed(See 'Shop Closed' Message)
+    
+    U3 --> U4(Select Services & Add to Cart)
+    U4 --> U5(Review Cart & Select Address)
+    U5 --> U6(Place Order)
+    
+    U6 --> U7(Wait for Order Confirmation)
+    U7 -->|Accepted by Shop/Helper| U8(Wait for Pickup)
+    U7 -->|Rejected by Shop| U_rej(Order Cancelled)
+    
+    U8 --> U9(Handover Clothes to Helper)
+    U9 --> U10(Receive 'Bill Updated' Alert based on actual items)
+    U10 --> U11(Wait for Processing)
+    
+    U11 --> U12(Receive 'Out for Delivery' Notification)
+    U12 --> U13{Are you available to receive?}
+    U13 -- No --> U14(Reschedule Delivery Time) --> U11
+    U13 -- Yes --> U15(Receive Clean Clothes)
+    
+    U15 --> U16(Pay via Cash or UPI to Helper)
+    U16 --> U17(Receive 'Order Completed' Notification)
+    U17 --> U18(Submit Rating & Review)
+
+    class U1,U2,U3,U_closed,U4,U5,U6,U7,U8,U_rej,U9,U10,U11,U12,U13,U14,U15,U16,U17,U18 user;
