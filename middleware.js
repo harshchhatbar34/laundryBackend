@@ -21,6 +21,7 @@ export function middleware(req) {
       },
     });
   }
+  
 
   // Inject CORS headers into actual responses
   const response = NextResponse.next();
