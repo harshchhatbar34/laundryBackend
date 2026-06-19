@@ -2,10 +2,20 @@ import fs from 'fs';
 import path from 'path';
 
 const LOGS_DIR = path.join(process.cwd(), 'logs');
+let isFileLoggingEnabled = false;
 
-// Ensure logs directory exists
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
+// Check if we are in a serverless read-only environment (e.g. Vercel, AWS Lambda)
+const isServerless = !!(process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.NETLIFY);
+
+if (!isServerless) {
+  try {
+    if (!fs.existsSync(LOGS_DIR)) {
+      fs.mkdirSync(LOGS_DIR, { recursive: true });
+    }
+    isFileLoggingEnabled = true;
+  } catch (err) {
+    console.warn('Logging to file disabled (directory could not be created):', err);
+  }
 }
 
 const combinedLogPath = path.join(LOGS_DIR, 'combined.log');
@@ -16,11 +26,13 @@ function getTimestamp(): string {
 }
 
 function writeToFile(filePath: string, level: string, message: string, meta?: unknown) {
+  if (!isFileLoggingEnabled) return;
   try {
     const metaStr = meta ? ` | Meta: ${JSON.stringify(meta)}` : '';
     const logLine = `${getTimestamp()} [${level.toUpperCase()}]: ${message}${metaStr}\n`;
     fs.appendFileSync(filePath, logLine, 'utf8');
   } catch (err) {
+    // Gracefully handle any write errors so request doesn't crash
     console.error('Failed to write to log file:', err);
   }
 }
