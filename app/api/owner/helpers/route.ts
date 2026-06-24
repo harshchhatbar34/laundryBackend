@@ -17,13 +17,14 @@ export const GET = withRole('owner')(async (req: NextRequest, ctx: AuthContext) 
     );
     return sendSuccess(200, 'Helpers fetched', result);
   } catch (err: unknown) {
-    const e = err as { message?: string; statusCode?: number };
-    return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');
+    console.error("GET /api/owner/helpers ERROR:", err);
+    const e = err as { message?: string; statusCode?: number; stack?: string };
+    return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error', [e.stack]);
   }
 });
 
 // POST /api/owner/helpers — create a helper account
-export const POST = withRole('owner')(async (req: NextRequest, _ctx: AuthContext) => {
+export const POST = withRole('owner')(async (req: NextRequest, ctx: AuthContext) => {
   try {
     await connectDB();
     const body = await req.json();
@@ -32,7 +33,7 @@ export const POST = withRole('owner')(async (req: NextRequest, _ctx: AuthContext
       return sendError(400, 'name, email, and password are required');
     }
 
-    const helper = await createHelper(body);
+    const helper = await createHelper(ctx.user._id, body);
     return sendSuccess(201, 'Helper account created', { helper });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

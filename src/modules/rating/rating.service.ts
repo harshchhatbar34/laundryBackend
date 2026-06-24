@@ -6,10 +6,10 @@ export const submitRating = async (
   customerId: Types.ObjectId | string,
   data: { orderId: string; rating: number; review?: string }
 ) => {
-  // Verify order is delivered and belongs to this customer
-  const order = await Order.findOne({ _id: data.orderId, customer: customerId, status: 'delivered' });
+  // Verify order is delivered/completed and belongs to this customer
+  const order = await Order.findOne({ _id: data.orderId, customer: customerId, status: { $in: ['delivered', 'completed'] } });
   if (!order) {
-    throw Object.assign(new Error('Order not found or not yet delivered.'), { statusCode: 404 });
+    throw Object.assign(new Error('Order not found or not yet completed.'), { statusCode: 404 });
   }
 
   // Prevent duplicate ratings

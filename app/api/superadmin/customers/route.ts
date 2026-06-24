@@ -2,10 +2,10 @@ import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { sendSuccess, sendError } from '@/lib/apiResponse';
 import { withRole } from '@/lib/auth';
-import { getAllTenants } from '@/src/modules/admin/admin.service';
+import { getAllCustomers } from '@/src/modules/admin/admin.service';
 import type { AuthContext } from '@/types';
 
-// GET /api/superadmin/tenants — list all tenant codes
+// GET /api/superadmin/customers — list all customers across the platform (optionally filter by ownerId)
 export const GET = withRole('superadmin')(async (req: NextRequest, _ctx: AuthContext) => {
   try {
     await connectDB();
@@ -13,9 +13,10 @@ export const GET = withRole('superadmin')(async (req: NextRequest, _ctx: AuthCon
     const page = Number(url.searchParams.get('page')) || 1;
     const limit = Number(url.searchParams.get('limit')) || 20;
     const search = url.searchParams.get('search') || undefined;
+    const ownerId = url.searchParams.get('ownerId') || undefined;
 
-    const result = await getAllTenants(page, limit, search);
-    return sendSuccess(200, 'Tenants fetched', result);
+    const result = await getAllCustomers(page, limit, search, ownerId);
+    return sendSuccess(200, 'Customers fetched successfully', result);
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };
     return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');

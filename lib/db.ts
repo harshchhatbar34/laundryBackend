@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 
+// Register all models to prevent Mongoose schema registration exceptions in Next.js routes
+import '@/src/modules/user/user.model';
+import '@/src/modules/tenant/tenant.model';
+import '@/src/modules/branch/branch.model';
+import '@/src/modules/coupon/coupon.model';
+import '@/src/modules/notification/notification.model';
+import '@/src/modules/order/order.model';
+import '@/src/modules/rating/rating.model';
+import '@/src/modules/user/address.model';
+import '@/src/modules/service/material.model';
+import '@/src/modules/service/item.model';
+import '@/src/modules/service/service.model';
+
 const MONGODB_URI = process.env.MONGO_URI;
 
 if (!MONGODB_URI) {

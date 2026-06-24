@@ -11,7 +11,7 @@ import type { AuthContext } from '@/types';
  * Customer is automatically notified with the new total.
  * Body: { items: [{ material, item, service, quantity }] }
  */
-export const PATCH = withRole('helper')(async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
+export const PATCH = withRole('helper', 'owner')(async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
   try {
     await connectDB();
     const body = await req.json();
@@ -20,7 +20,7 @@ export const PATCH = withRole('helper')(async (req: NextRequest, ctx: AuthContex
       return sendError(400, 'items array is required with actual item counts');
     }
 
-    const order = await helperUpdateBill(ctx.params.id, ctx.user._id, body.items);
+    const order = await helperUpdateBill(ctx.params.id, ctx.user._id, body.items, ctx.user.role);
     return sendSuccess(200, 'Bill updated and customer notified', { order });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

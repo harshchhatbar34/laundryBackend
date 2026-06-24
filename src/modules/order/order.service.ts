@@ -1,10 +1,29 @@
 import Order from './order.model';
-import Price from '../service/price.model';
+import Service from '../service/service.model';
+import Material from '../service/material.model';
+import Item from '../service/item.model';
 import Coupon from '../coupon/coupon.model';
 import Address from '../user/address.model';
+import Tenant from '../tenant/tenant.model';
 import { createNotification } from '../notification/notification.service';
-import type { Types } from 'mongoose';
+import mongoose, { type Types } from 'mongoose';
 import type { OrderStatus } from '@/types';
+
+// ─── Status Filter Mapper ─────────────────────────────────────────────────────
+
+const mapStatusFilter = (status?: string): any => {
+  if (!status || status === 'all') return undefined;
+  if (status === 'active') {
+    return { $in: ['accepted', 'pickup', 'picked_up', 'processing', 'ready', 'out_for_delivery', 'failed_delivery'] };
+  }
+  if (status === 'in_progress') {
+    return { $in: ['pickup', 'picked_up', 'processing', 'ready', 'out_for_delivery', 'failed_delivery'] };
+  }
+  if (status === 'completed') {
+    return { $in: ['delivered', 'completed'] };
+  }
+  return status;
+};
 
 // ─── Pricing Calculator ───────────────────────────────────────────────────────
 
@@ -16,17 +35,26 @@ const calculatePricing = async (
   const processedItems = [];
 
   for (const orderItem of items) {
-    const priceDoc = await Price.findOne({
-      material: orderItem.material,
-      item: orderItem.item,
-      service: orderItem.service,
-    });
-    if (!priceDoc) {
-      throw Object.assign(new Error('Price not found for one or more items in your cart.'), { statusCode: 400 });
+    // Handle both populated objects (if frontend sends them back) and raw string IDs
+    const serviceId = typeof orderItem.service === 'object' ? (orderItem.service as any)._id : orderItem.service;
+    const materialId = typeof orderItem.material === 'object' ? (orderItem.material as any)._id : orderItem.material;
+    const itemId = typeof orderItem.item === 'object' ? (orderItem.item as any)._id : orderItem.item;
+
+    const [serviceDoc, materialDoc, itemDoc] = await Promise.all([
+      Service.findById(serviceId),
+      Material.findById(materialId),
+      Item.findById(itemId),
+    ]);
+
+    if (!serviceDoc || !materialDoc || !itemDoc) {
+      throw Object.assign(new Error('Invalid service, material, or item in cart.'), { statusCode: 400 });
     }
-    const lineTotal = priceDoc.price * orderItem.quantity;
+
+    const unitPrice = (materialDoc.price || 0) + (itemDoc.price || 0);
+    const lineTotal = unitPrice * orderItem.quantity;
+    
     subtotal += lineTotal;
-    processedItems.push({ ...orderItem, price: priceDoc.price });
+    processedItems.push({ ...orderItem, price: unitPrice });
   }
 
   let discount = 0;
@@ -103,12 +131,24 @@ export const createOrder = async (
     await couponDoc.save();
   }
 
+  // Notify Customer
   await createNotification(customerId, {
     title: '🎉 Order Placed!',
     body: `Your order ${order.orderNumber} has been placed. Waiting for confirmation.`,
     type: 'order',
     refId: order._id as Types.ObjectId,
   });
+
+  // Notify Owner
+  const tenantDoc = await Tenant.findById(tenantId);
+  if (tenantDoc && tenantDoc.owner) {
+    await createNotification(tenantDoc.owner, {
+      title: '📦 New Order Received!',
+      body: `A new order ${order.orderNumber} has been placed. Please review and confirm it.`,
+      type: 'order',
+      refId: order._id as Types.ObjectId,
+    });
+  }
 
   return order.populate(['address', 'items.material', 'items.item', 'items.service']);
 };
@@ -120,7 +160,10 @@ export const getCustomerOrders = async (
   { page = 1, limit = 10, status }: { page?: number; limit?: number; status?: string }
 ) => {
   const query: Record<string, unknown> = { customer: customerId };
-  if (status) query.status = status;
+  const statusQuery = mapStatusFilter(status);
+  if (statusQuery !== undefined) {
+    query.status = statusQuery;
+  }
   const skip = (page - 1) * limit;
 
   const [orders, total] = await Promise.all([
@@ -146,13 +189,27 @@ export const getOrderById = async (orderId: string, customerId?: Types.ObjectId 
   const order = await Order.findOne(query)
     .populate('items.material items.item items.service')
     .populate('address')
-    .populate('customer', 'name email')
-    .populate('helper', 'name email')
+    .populate('customer', 'name email mobileNumber')
+    .populate('helper', 'name email mobileNumber')
     .populate('branch', 'name city phone')
-    .populate('coupon', 'code type value');
+    .populate('coupon', 'code type value')
+    .populate({
+      path: 'tenant',
+      select: 'laundryName tenantCode owner',
+      populate: {
+        path: 'owner',
+        select: 'name email mobileNumber',
+      },
+    });
 
   if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
-  return order;
+
+  // Check if order is already rated (lazy load Rating model to avoid circular deps)
+  const Rating = (await import('../rating/rating.model')).default;
+  const ratingExists = await Rating.exists({ order: orderId });
+
+  const orderObj = order.toJSON();
+  return { ...orderObj, isRated: !!ratingExists };
 };
 
 // ─── Cancel Order (Customer) ──────────────────────────────────────────────────
@@ -216,6 +273,40 @@ export const rescheduleDelivery = async (
   return order;
 };
 
+// ─── Owner: Get Tenant Orders (General orders lookup for owner) ────────────────
+export const getTenantOrders = async (
+  tenantId: string,
+  { page = 1, limit = 20, status, customerId, search, branchId }: { page?: number; limit?: number; status?: string; customerId?: string; search?: string; branchId?: string }
+) => {
+  const query: Record<string, any> = { tenant: tenantId };
+  const statusQuery = mapStatusFilter(status);
+  if (statusQuery !== undefined) {
+    query.status = statusQuery;
+  }
+  if (customerId) query.customer = customerId;
+  if (branchId) query.branch = branchId;
+  if (search) {
+    const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(escaped, 'i');
+    query.orderNumber = regex;
+  }
+  const skip = (page - 1) * limit;
+
+  const [orders, total] = await Promise.all([
+    Order.find(query)
+      .populate('customer', 'name email')
+      .populate('items.material items.item items.service')
+      .populate('address')
+      .populate('branch', 'name city')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Order.countDocuments(query),
+  ]);
+
+  return { orders, total, page, limit, totalPages: Math.ceil(total / limit) };
+};
+
 // ─── Owner: Get Branch Orders ─────────────────────────────────────────────────
 
 export const getBranchOrders = async (
@@ -223,7 +314,10 @@ export const getBranchOrders = async (
   { page = 1, limit = 20, status }: { page?: number; limit?: number; status?: string }
 ) => {
   const query: Record<string, unknown> = { branch: branchId };
-  if (status) query.status = status;
+  const statusQuery = mapStatusFilter(status);
+  if (statusQuery !== undefined) {
+    query.status = statusQuery;
+  }
   const skip = (page - 1) * limit;
 
   const [orders, total] = await Promise.all([
@@ -304,7 +398,7 @@ export const helperAcceptOrder = async (
 // ─── Helper: Update Order Status ──────────────────────────────────────────────
 
 const HELPER_ALLOWED_STATUSES: OrderStatus[] = [
-  'pickup', 'picked_up', 'processing', 'ready', 'out_for_delivery', 'failed_delivery', 'delivered',
+  'pickup', 'picked_up', 'processing', 'ready', 'out_for_delivery', 'failed_delivery', 'delivered', 'completed',
 ];
 
 export const helperUpdateOrderStatus = async (
@@ -317,8 +411,14 @@ export const helperUpdateOrderStatus = async (
     throw Object.assign(new Error('Invalid status transition'), { statusCode: 400 });
   }
 
-  const order = await Order.findOne({ _id: orderId, helper: helperId });
-  if (!order) throw Object.assign(new Error('Order not found or not assigned to you'), { statusCode: 404 });
+  const order = await Order.findById(orderId);
+  if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
+
+  if (status === 'picked_up') {
+    if (order.billUpdated && !order.billConfirmed) {
+      throw Object.assign(new Error('Customer must confirm the updated bill before marking the order as picked up.'), { statusCode: 400 });
+    }
+  }
 
   order.status = status;
   order.timeline.push({ status, note: note ?? '', updatedBy: helperId as Types.ObjectId, updatedAt: new Date() });
@@ -354,13 +454,24 @@ export const helperUpdateOrderStatus = async (
 export const helperUpdateBill = async (
   orderId: string,
   helperId: Types.ObjectId | string,
-  items: { material: string; item: string; service: string; quantity: number }[]
+  items: { material: string; item: string; service: string; quantity: number }[],
+  userRole?: string
 ) => {
-  const order = await Order.findOne({ _id: orderId, helper: helperId });
-  if (!order) throw Object.assign(new Error('Order not found or not assigned to you'), { statusCode: 404 });
+  let order;
+  if (userRole === 'owner') {
+    order = await Order.findById(orderId);
+    if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
+    const tenantDoc = await Tenant.findById(order.tenant);
+    if (!tenantDoc || tenantDoc.owner.toString() !== helperId.toString()) {
+      throw Object.assign(new Error('Unauthorized: You do not own this laundry tenant'), { statusCode: 403 });
+    }
+  } else {
+    order = await Order.findOne({ _id: orderId, helper: helperId });
+    if (!order) throw Object.assign(new Error('Order not found or not assigned to you'), { statusCode: 404 });
+  }
 
-  if (order.status !== 'picked_up') {
-    throw Object.assign(new Error('Bill can only be updated after pickup.'), { statusCode: 400 });
+  if (!['accepted', 'pickup'].includes(order.status)) {
+    throw Object.assign(new Error('Order cannot be updated once it has been picked up.'), { statusCode: 400 });
   }
 
   // Recalculate pricing based on actual items
@@ -369,17 +480,50 @@ export const helperUpdateBill = async (
   order.items = processedItems as typeof order.items;
   order.pricing = { subtotal, discount, total };
   order.billUpdated = true;
+  order.billConfirmed = false; // reset confirmation when bill is modified
   await order.save();
 
   // CRITICAL: Notify customer about updated bill
   await createNotification(order.customer, {
-    title: '📋 Bill Updated',
-    body: `The final bill for order ${order.orderNumber} has been updated to ₹${total}. Processing will now begin.`,
+    title: '📋 Order Bill Updated - Action Required',
+    body: `The items or bill for your order ${order.orderNumber} have been updated to ₹${total} by the shop. Please review and confirm.`,
     type: 'order',
     refId: order._id as Types.ObjectId,
   });
 
   return order.populate(['items.material', 'items.item', 'items.service']);
+};
+
+// ─── Customer: Confirm Order Bill & Items ────────────────────────────────────
+
+export const confirmOrderBill = async (orderId: string, customerId: Types.ObjectId | string) => {
+  const order = await Order.findOne({ _id: orderId, customer: customerId });
+  if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
+
+  if (!order.billUpdated) {
+    throw Object.assign(new Error('Bill has not been updated yet.'), { statusCode: 400 });
+  }
+
+  order.billConfirmed = true;
+  order.timeline.push({
+    status: order.status,
+    note: 'Customer confirmed the updated bill & items.',
+    updatedBy: customerId as Types.ObjectId,
+    updatedAt: new Date(),
+  });
+  await order.save();
+
+  // Notify helper/owner
+  if (order.helper) {
+    await createNotification(order.helper, {
+      title: '✅ Bill Confirmed!',
+      body: `Customer has confirmed the updated bill for order ${order.orderNumber}. You can now pick up the order.`,
+      type: 'order',
+      refId: order._id as Types.ObjectId,
+    });
+  }
+
+  return order;
 };
 
 // ─── Helper: Fail Delivery ────────────────────────────────────────────────────
@@ -413,7 +557,10 @@ export const getHelperOrders = async (
   { page = 1, limit = 20, status }: { page?: number; limit?: number; status?: string }
 ) => {
   const query: Record<string, unknown> = { helper: helperId };
-  if (status) query.status = status;
+  const statusQuery = mapStatusFilter(status);
+  if (statusQuery !== undefined) {
+    query.status = statusQuery;
+  }
   const skip = (page - 1) * limit;
 
   const [orders, total] = await Promise.all([
@@ -437,21 +584,23 @@ export const getBranchStats = async (branchId: string) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [totalOrders, pendingOrders, todayOrders, revenueAgg, last7Days, avgRatingAgg] =
+  const branchObjectId = new mongoose.Types.ObjectId(branchId);
+
+  const [totalOrders, pendingOrders, todayOrders, revenueAgg, last7Days, avgRatingAgg, activeHelpers] =
     await Promise.all([
       Order.countDocuments({ branch: branchId }),
       Order.countDocuments({ branch: branchId, status: 'pending' }),
       Order.countDocuments({ branch: branchId, createdAt: { $gte: today } }),
       Order.aggregate([
-        { $match: { branch: { $toString: branchId }, status: { $nin: ['cancelled', 'rejected'] } } },
+        { $match: { branch: branchObjectId, status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$pricing.total' } } },
       ]),
       Order.aggregate([
         {
           $match: {
-            branch: { $toString: branchId },
+            branch: branchObjectId,
             createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-            status: { $nin: ['cancelled', 'rejected'] },
+            status: 'completed',
           },
         },
         {
@@ -467,10 +616,11 @@ export const getBranchStats = async (branchId: string) => {
       (async () => {
         const Rating = (await import('../rating/rating.model')).default;
         return Rating.aggregate([
-          { $match: { branch: { $toString: branchId } } },
+          { $match: { branch: branchObjectId } },
           { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
         ]);
       })(),
+      mongoose.model('User').countDocuments({ role: 'helper', isActive: true }),
     ]);
 
   return {
@@ -481,5 +631,66 @@ export const getBranchStats = async (branchId: string) => {
     last7Days,
     avgRating: avgRatingAgg[0]?.avg ?? 0,
     totalRatings: avgRatingAgg[0]?.count ?? 0,
+    activeHelpers,
+  };
+};
+
+// ─── Owner: Tenant-wide Analytics / Stats ─────────────────────────────────────
+
+export const getTenantStats = async (tenantId: string) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tenantObjectId = new mongoose.Types.ObjectId(tenantId);
+  const BranchModel = mongoose.model('Branch');
+  const branches = await BranchModel.find({ tenant: tenantObjectId });
+  const branchIds = branches.map(b => b._id);
+
+  const [totalOrders, pendingOrders, todayOrders, revenueAgg, last7Days, avgRatingAgg, activeHelpers] =
+    await Promise.all([
+      Order.countDocuments({ tenant: tenantObjectId }),
+      Order.countDocuments({ tenant: tenantObjectId, status: 'pending' }),
+      Order.countDocuments({ tenant: tenantObjectId, createdAt: { $gte: today } }),
+      Order.aggregate([
+        { $match: { tenant: tenantObjectId, status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$pricing.total' } } },
+      ]),
+      Order.aggregate([
+        {
+          $match: {
+            tenant: tenantObjectId,
+            createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+            status: 'completed',
+          },
+        },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            revenue: { $sum: '$pricing.total' },
+            orders: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+      // Average rating across all branches of the tenant
+      (async () => {
+        const Rating = (await import('../rating/rating.model')).default;
+        return Rating.aggregate([
+          { $match: { branch: { $in: branchIds } } },
+          { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+        ]);
+      })(),
+      mongoose.model('User').countDocuments({ role: 'helper', isActive: true }),
+    ]);
+
+  return {
+    totalOrders,
+    pendingOrders,
+    todayOrders,
+    totalRevenue: revenueAgg[0]?.total ?? 0,
+    last7Days,
+    avgRating: avgRatingAgg[0]?.avg ?? 0,
+    totalRatings: avgRatingAgg[0]?.count ?? 0,
+    activeHelpers,
   };
 };

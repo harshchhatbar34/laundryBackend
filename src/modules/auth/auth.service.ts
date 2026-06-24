@@ -18,8 +18,9 @@ export const registerCustomer = async (body: {
   email: string;
   password: string;
   tenantCode: string;
+  mobileNumber?: string;
 }) => {
-  const { name, email, password, tenantCode } = body;
+  const { name, email, password, tenantCode, mobileNumber } = body;
 
   // Validate tenant code
   const tenant = await Tenant.findOne({ tenantCode: tenantCode.toUpperCase(), isActive: true });
@@ -38,6 +39,7 @@ export const registerCustomer = async (body: {
     name,
     email,
     password: hashedPassword,
+    mobileNumber: mobileNumber || null,
     role: 'customer',
     tenantId: tenant._id,
   });

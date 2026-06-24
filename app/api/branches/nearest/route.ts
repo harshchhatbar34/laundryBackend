@@ -2,14 +2,13 @@ import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { sendSuccess, sendError } from '@/lib/apiResponse';
 import { withAuth } from '@/lib/auth';
-import { findNearestBranch } from '@/src/modules/branch/branch.service';
+import Branch from '@/src/modules/branch/branch.model';
 import Tenant from '@/src/modules/tenant/tenant.model';
 import type { AuthContext } from '@/types';
 
 /**
  * GET /api/branches/nearest?lat=xx&lng=xx&tenantCode=XXXX
- * Returns the nearest branch for the customer's tenant.
- * Also returns isLive status so the app can show "Shop Closed" if needed.
+ * Returns the nearest branch for the customer's tenant, and all branches sorted by distance.
  */
 export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
   try {
@@ -24,7 +23,7 @@ export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
       return sendError(400, 'lat and lng are required query parameters');
     }
 
-    // Resolve tenant: prefer query param (for non-customer roles), fall back to user's tenantId
+    // Resolve tenant: prefer query param, fall back to user's tenantId
     let tenantId = null;
 
     if (ctx.user.role === 'customer') {
@@ -41,8 +40,20 @@ export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
 
     if (!tenantId) return sendError(400, 'tenantCode is required');
 
-    const branch = await findNearestBranch(tenantId, lng, lat);
-    return sendSuccess(200, 'Nearest branch found', { branch });
+    // Fetch all branches of the tenant sorted from near to far using geospatial $near query
+    const branches = await Branch.find({
+      tenant: tenantId,
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [lng, lat] },
+        },
+      },
+    }).populate('owner', 'name email');
+
+    return sendSuccess(200, 'Branches resolved', {
+      branch: branches[0] || null,
+      branches: branches,
+    });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };
     return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');

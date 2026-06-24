@@ -16,6 +16,7 @@ export type OrderStatus =
   | 'out_for_delivery'// helper leaving for delivery
   | 'failed_delivery' // customer unavailable — awaiting reschedule
   | 'delivered'       // delivered, payment collected
+  | 'completed'       // payment collected, order finished
   | 'cancelled';      // cancelled by customer
 
 export const ORDER_STATUSES: OrderStatus[] = [
@@ -29,6 +30,7 @@ export const ORDER_STATUSES: OrderStatus[] = [
   'out_for_delivery',
   'failed_delivery',
   'delivered',
+  'completed',
   'cancelled',
 ];
 
@@ -36,11 +38,16 @@ export const ORDER_STATUSES: OrderStatus[] = [
 export type PaymentMethod = 'cash' | 'upi';
 export type PaymentStatus = 'pending' | 'paid';
 
+// ─── Subscription ────────────────────────────────────────────────────────────
+export type SubscriptionType = 'monthly' | 'yearly' | 'onetime';
+
 // ─── User ────────────────────────────────────────────────────────────────────
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name: string;
   email: string;
+  mobileNumber?: string;
+  photo?: string;            // URL or file path
   password: string;
   role: UserRole;
   tenantId: Types.ObjectId | null; // set for customers — links to their Tenant
@@ -69,10 +76,21 @@ export interface IAddress extends Document {
 // ─── Tenant ──────────────────────────────────────────────────────────────────
 export interface ITenant extends Document {
   _id: Types.ObjectId;
-  tenantCode: string;      // hardcoded in each white-label app
-  owner: Types.ObjectId;   // ref User (role: owner)
+  tenantCode: string;        // hardcoded in each white-label app
+  owner: Types.ObjectId;     // ref User (role: owner)
+  laundryName: string;       // business/brand name
+  address?: string;          // laundry business address
+  landmark?: string;         // optional landmark / line 2
+  city?: string;
+  state?: string;
+  pincode?: string;
+  paymentAmount: number;     // subscription fee amount
+  paymentMode: PaymentMethod;// cash or upi
+  subscription: SubscriptionType; // monthly, yearly, onetime
+  upiId?: string;            // owner's UPI ID for receiving customer payments
   isActive: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 // ─── Branch ──────────────────────────────────────────────────────────────────
@@ -82,6 +100,7 @@ export interface IBranch extends Document {
   owner: Types.ObjectId;   // ref User (role: owner) — denormalized for fast queries
   name: string;
   addressLine: string;
+  landmark?: string;
   city: string;
   phone: string;
   location: {
@@ -95,9 +114,11 @@ export interface IBranch extends Document {
 // ─── Service ─────────────────────────────────────────────────────────────────
 export interface IService extends Document {
   _id: Types.ObjectId;
+  tenant: Types.ObjectId;  // ref Tenant
   name: string;            // e.g. "Wash", "Dry Clean", "Iron"
   description: string;
   icon: string;            // emoji or icon key
+  price: number;
   isActive: boolean;
   sortOrder: number;
 }
@@ -105,24 +126,19 @@ export interface IService extends Document {
 // ─── Material ────────────────────────────────────────────────────────────────
 export interface IMaterial extends Document {
   _id: Types.ObjectId;
+  tenant: Types.ObjectId;
   name: string;            // e.g. "Cotton", "Silk", "Wool"
+  price: number;
   isActive: boolean;
 }
 
 // ─── Item ────────────────────────────────────────────────────────────────────
 export interface IItem extends Document {
   _id: Types.ObjectId;
+  tenant: Types.ObjectId;
   name: string;            // e.g. "Shirt", "Trouser", "Saree"
-  isActive: boolean;
-}
-
-// ─── Price ───────────────────────────────────────────────────────────────────
-export interface IPrice extends Document {
-  _id: Types.ObjectId;
-  service: Types.ObjectId;
-  material: Types.ObjectId;
-  item: Types.ObjectId;
   price: number;
+  isActive: boolean;
 }
 
 // ─── Coupon ──────────────────────────────────────────────────────────────────
@@ -180,6 +196,7 @@ export interface IOrder extends Document {
     total: number;
   };
   billUpdated: boolean;             // true after helper updates bill at pickup
+  billConfirmed: boolean;           // true after customer confirms updated bill
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   notes: string;

@@ -17,6 +17,25 @@ const tenantSchema = new Schema<ITenant>(
       ref: 'User',
       required: true,
     },
+    laundryName: { type: String, required: true, trim: true },
+    address: { type: String, trim: true, default: null },
+    landmark: { type: String, trim: true, default: null },
+    city: { type: String, trim: true, default: null },
+    state: { type: String, trim: true, default: null },
+    pincode: { type: String, trim: true, default: null },
+    paymentAmount: { type: Number, required: true, default: 0 },
+    paymentMode: {
+      type: String,
+      enum: ['cash', 'upi'],
+      default: 'cash',
+    },
+    upiId: { type: String, trim: true, default: null }, // owner's UPI ID for customer payments
+    subscription: {
+      type: String,
+      enum: ['monthly', 'yearly', 'onetime'],
+      required: true,
+      default: 'monthly',
+    },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

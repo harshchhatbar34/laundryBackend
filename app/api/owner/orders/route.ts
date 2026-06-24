@@ -2,30 +2,43 @@ import { NextRequest } from 'next/server';
 import { connectDB } from '@/lib/db';
 import { sendPaginated, sendError } from '@/lib/apiResponse';
 import { withRole } from '@/lib/auth';
-import { getBranchOrders } from '@/src/modules/order/order.service';
+import { getTenantOrders } from '@/src/modules/order/order.service';
 import Branch from '@/src/modules/branch/branch.model';
+import Tenant from '@/src/modules/tenant/tenant.model';
 import type { AuthContext } from '@/types';
 
 /**
- * GET /api/owner/orders?branchId=&status=&page=&limit=
- * Returns all orders for a branch owned by the current owner.
+ * GET /api/owner/orders?branchId=&customerId=&status=&page=&limit=&search=
+ * Returns all orders for a branch or customer owned by the current owner's tenant.
  */
 export const GET = withRole('owner')(async (req: NextRequest, ctx: AuthContext) => {
   try {
     await connectDB();
     const url = new URL(req.url);
-    const branchId = url.searchParams.get('branchId');
+    const branchId = url.searchParams.get('branchId') || undefined;
+    const customerId = url.searchParams.get('customerId') || undefined;
+    const search = url.searchParams.get('search') || undefined;
+    const status = url.searchParams.get('status') || undefined;
+    const page = Number(url.searchParams.get('page')) || 1;
+    const limit = Number(url.searchParams.get('limit')) || 20;
 
-    if (!branchId) return sendError(400, 'branchId query param is required');
+    // Find the owner's tenant
+    const tenant = await Tenant.findOne({ owner: ctx.user._id });
+    if (!tenant) return sendError(404, 'Tenant not found');
 
-    // Verify ownership
-    const branch = await Branch.findOne({ _id: branchId, owner: ctx.user._id });
-    if (!branch) return sendError(403, 'Branch not found or does not belong to you');
+    if (branchId) {
+      // Verify branch ownership
+      const branch = await Branch.findOne({ _id: branchId, owner: ctx.user._id });
+      if (!branch) return sendError(403, 'Branch not found or does not belong to you');
+    }
 
-    const result = await getBranchOrders(branchId, {
-      page: Number(url.searchParams.get('page')) || 1,
-      limit: Number(url.searchParams.get('limit')) || 20,
-      status: url.searchParams.get('status') ?? undefined,
+    const result = await getTenantOrders(tenant._id.toString(), {
+      page,
+      limit,
+      status,
+      customerId,
+      search,
+      branchId,
     });
 
     return sendPaginated('Orders fetched', result.orders, {

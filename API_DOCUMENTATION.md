@@ -370,9 +370,8 @@ Allows owner to accept/reject incoming customer bookings.
 
 ## ⚙️ Superadmin Module
 
-- **List/Create/Deactivate Owners:** `GET|POST|PATCH /api/superadmin/owners`
-- **Generate Tenant Code:** `POST /api/superadmin/tenants`
-  - Body: `{ "ownerId": "ownerId" }`
+- **List/Create/Deactivate Owners:** `GET|POST|PATCH /api/superadmin/owners` (GET supports `page`, `limit`, `search`, and `status`)
+- **Owner Details & Update:** `GET|PUT /api/superadmin/owners/[id]`
 - **Coupon Admin CRUD:** `GET|POST|PATCH|DELETE /api/superadmin/coupons`
 - **Global Platform Stats:** `GET /api/superadmin/stats`
 

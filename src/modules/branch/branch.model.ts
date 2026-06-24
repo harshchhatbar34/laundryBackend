@@ -7,6 +7,7 @@ const branchSchema = new Schema<IBranch>(
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true },
     addressLine: { type: String, required: true, trim: true },
+    landmark: { type: String, trim: true },
     city: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     location: {

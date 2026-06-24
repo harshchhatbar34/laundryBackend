@@ -11,7 +11,7 @@ import {
 import type { AuthContext, OrderStatus } from '@/types';
 
 // GET /api/helper/orders/[id]
-export const GET = withRole('helper')(async (_req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
+export const GET = withRole('helper', 'owner')(async (_req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
   try {
     await connectDB();
     const order = await getOrderById(ctx.params.id);
@@ -26,7 +26,7 @@ export const GET = withRole('helper')(async (_req: NextRequest, ctx: AuthContext
  * PATCH /api/helper/orders/[id]
  * Body: { action: 'accept' | 'status' | 'fail_delivery', status?: OrderStatus, note?: string }
  */
-export const PATCH = withRole('helper')(async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
+export const PATCH = withRole('helper', 'owner')(async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
   try {
     await connectDB();
     const body = await req.json();

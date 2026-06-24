@@ -6,7 +6,7 @@ import { getHelperOrders } from '@/src/modules/order/order.service';
 import type { AuthContext } from '@/types';
 
 // GET /api/helper/orders — helper's assigned orders
-export const GET = withRole('helper')(async (req: NextRequest, ctx: AuthContext) => {
+export const GET = withRole('helper', 'owner')(async (req: NextRequest, ctx: AuthContext) => {
   try {
     await connectDB();
     const url = new URL(req.url);

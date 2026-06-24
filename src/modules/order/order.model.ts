@@ -57,6 +57,7 @@ const orderSchema = new Schema<IOrder>(
     },
     // true after helper updates item count at pickup — customer is notified
     billUpdated: { type: Boolean, default: false },
+    billConfirmed: { type: Boolean, default: false },
     paymentMethod: {
       type: String,
       enum: ['cash', 'upi'],
@@ -73,7 +74,7 @@ const orderSchema = new Schema<IOrder>(
 );
 
 // Auto-generate human-readable order number
-orderSchema.pre('save', async function (next) {
+orderSchema.pre('save', async function (this: any, next) {
   if (!this.orderNumber) {
     const count = await mongoose.model('Order').countDocuments();
     this.orderNumber = `LND-${String(count + 1).padStart(6, '0')}`;
