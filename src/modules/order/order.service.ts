@@ -620,8 +620,14 @@ export const getBranchStats = async (branchId: string) => {
           { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
         ]);
       })(),
-      mongoose.model('User').countDocuments({ role: 'helper', isActive: true }),
+      (async () => {
+        const branchObj = await mongoose.model('Branch').findById(branchObjectId);
+        return branchObj
+          ? mongoose.model('User').countDocuments({ role: 'helper', tenantId: branchObj.tenant, isActive: true })
+          : 0;
+      })(),
     ]);
+
 
   return {
     totalOrders,
@@ -680,8 +686,9 @@ export const getTenantStats = async (tenantId: string) => {
           { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
         ]);
       })(),
-      mongoose.model('User').countDocuments({ role: 'helper', isActive: true }),
+      mongoose.model('User').countDocuments({ role: 'helper', tenantId: tenantObjectId, isActive: true }),
     ]);
+
 
   return {
     totalOrders,
