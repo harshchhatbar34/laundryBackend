@@ -13,18 +13,18 @@ function isPublicRoute(pathname: string): boolean {
 }
 
 // ─── Helper: CORS headers ─────────────────────────────────────────────────────
-function applyCorsHeaders(response: NextResponse, origin: string): NextResponse {
-  response.headers.set('Access-Control-Allow-Origin', origin);
+// Allow any origin so mobile apps (Flutter, React Native, Expo) and web frontends
+// can all connect without CORS issues.
+function applyCorsHeaders(response: NextResponse): NextResponse {
+  response.headers.set('Access-Control-Allow-Origin', '*');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Tenant-Code');
-  response.headers.set('Access-Control-Allow-Credentials', 'true');
   return response;
 }
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const origin = req.headers.get('origin') ?? '*';
 
   // ── Log every incoming API request ─────────────────────────────────────────
   if (req.method !== 'OPTIONS') {
@@ -33,15 +33,12 @@ export async function middleware(req: NextRequest) {
 
   // ── Handle CORS preflight (OPTIONS) ────────────────────────────────────────
   if (req.method === 'OPTIONS') {
-    return applyCorsHeaders(
-      new NextResponse(null, { status: 200 }),
-      origin
-    );
+    return applyCorsHeaders(new NextResponse(null, { status: 200 }));
   }
 
   // ── Skip auth check for public routes ──────────────────────────────────────
   if (isPublicRoute(pathname)) {
-    return applyCorsHeaders(NextResponse.next(), origin);
+    return applyCorsHeaders(NextResponse.next());
   }
 
   // ── Verify JWT for all other /api/* routes ──────────────────────────────────
@@ -70,7 +67,7 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set('x-user-role', payload['role'] as string);
 
     const response = NextResponse.next({ request: { headers: requestHeaders } });
-    return applyCorsHeaders(response, origin);
+    return applyCorsHeaders(response);
 
   } catch (err: unknown) {
     const isExpired = err instanceof Error && err.message.includes('exp');
@@ -84,8 +81,7 @@ export async function middleware(req: NextRequest) {
           errors: [],
         },
         { status: 401 }
-      ),
-      origin
+      )
     );
   }
 }
