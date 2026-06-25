@@ -51,3 +51,17 @@ export const deleteAddress = async (
   const address = await Address.findOneAndDelete({ _id: addressId, user: userId });
   if (!address) throw Object.assign(new Error('Address not found'), { statusCode: 404 });
 };
+
+export const updatePushToken = async (
+  userId: Types.ObjectId | string,
+  pushToken: string | null
+) => {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $set: { pushToken } },
+    { new: true }
+  );
+  if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+  return user;
+};
+

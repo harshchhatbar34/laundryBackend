@@ -52,9 +52,11 @@ export interface IUser extends Document {
   role: UserRole;
   tenantId: Types.ObjectId | null; // set for customers — links to their Tenant
   isActive: boolean;
+  pushToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
+
 
 // ─── Address ─────────────────────────────────────────────────────────────────
 export interface IAddress extends Document {

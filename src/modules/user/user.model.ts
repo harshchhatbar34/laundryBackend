@@ -26,8 +26,10 @@ const userSchema = new Schema<IUser>(
       default: null,
     },
     isActive: { type: Boolean, default: true },
+    pushToken: { type: String, default: null },
   },
   {
+
     timestamps: true,
     toJSON: {
       transform: (_, ret: Record<string, unknown>) => {

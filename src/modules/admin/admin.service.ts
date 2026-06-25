@@ -448,15 +448,18 @@ export const getSuperadminStats = async () => {
 // ─── Helper CRUD (for Owner) ──────────────────────────────────────────────────
 
 export const getHelpersByOwner = async (ownerId: Types.ObjectId | string, page = 1, limit = 20) => {
-  // Helpers don't have tenantId — we find helpers linked via tenant/branch ownership
-  // For simplicity: Owner manages helpers directly (they share the same tenant space)
+  const tenant = await Tenant.findOne({ owner: ownerId });
+  if (!tenant) throw Object.assign(new Error('Tenant not found for owner'), { statusCode: 404 });
+
   const skip = (page - 1) * limit;
+  const matchStage = { role: 'helper', tenantId: tenant._id };
   const [helpers, total] = await Promise.all([
-    User.find({ role: 'helper' }).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit),
-    User.countDocuments({ role: 'helper' }),
+    User.find(matchStage).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit),
+    User.countDocuments(matchStage),
   ]);
   return { helpers, total, page, limit, totalPages: Math.ceil(total / limit) };
 };
+
 
 export const getCustomersByOwner = async (ownerId: Types.ObjectId | string, page = 1, limit = 20, search?: string) => {
   const tenant = await Tenant.findOne({ owner: ownerId });
