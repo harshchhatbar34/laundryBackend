@@ -49,8 +49,7 @@ export async function middleware(req: NextRequest) {
       NextResponse.json(
         { success: false, message: 'Unauthorized: No token provided', errors: [] },
         { status: 401 }
-      ),
-      origin
+      )
     );
   }
 
