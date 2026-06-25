@@ -453,6 +453,7 @@ export const getHelpersByOwner = async (ownerId: Types.ObjectId | string, page =
 
   const skip = (page - 1) * limit;
   const matchStage = { role: 'helper', tenantId: tenant._id };
+  
   const [helpers, total] = await Promise.all([
     User.find(matchStage).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit),
     User.countDocuments(matchStage),
