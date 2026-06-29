@@ -12,6 +12,7 @@ const userSchema = new Schema<IUser>(
       lowercase: true,
     },
     mobileNumber: { type: String, trim: true, default: null },
+    upiId: { type: String, trim: true, default: null },
     photo: { type: String, default: null },       // URL or file path
     password: { type: String, required: true },
     role: {

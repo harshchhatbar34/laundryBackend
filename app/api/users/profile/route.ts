@@ -22,7 +22,11 @@ export const PATCH = withAuth(async (req: NextRequest, ctx: AuthContext) => {
   try {
     await connectDB();
     const body = await req.json();
-    const user = await updateProfile(ctx.user._id, { name: body.name });
+    const user = await updateProfile(ctx.user._id, { 
+      name: body.name, 
+      mobileNumber: body.mobileNumber,
+      upiId: typeof body.upiId === 'string' ? (body.upiId.trim() || null) : undefined
+    });
     return sendSuccess(200, 'Profile updated', { user });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

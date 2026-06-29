@@ -53,6 +53,7 @@ export interface IUser extends Document {
   tenantId: Types.ObjectId | null; // set for customers — links to their Tenant
   isActive: boolean;
   pushToken?: string;
+  upiId?: string;
   createdAt: Date;
   updatedAt: Date;
 }

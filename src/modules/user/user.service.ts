@@ -12,7 +12,7 @@ export const getProfile = async (userId: Types.ObjectId | string) => {
 
 export const updateProfile = async (
   userId: Types.ObjectId | string,
-  updates: { name?: string }
+  updates: { name?: string; mobileNumber?: string; upiId?: string }
 ) => {
   const user = await User.findByIdAndUpdate(userId, { $set: updates }, { new: true, runValidators: true });
   if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });

@@ -83,9 +83,29 @@ export const getOwnerById = async (ownerId: string) => {
 
   const tenant = await Tenant.findOne({ owner: ownerId });
 
+  let avgRating = 0;
+  let branchesList = [];
+  if (tenant) {
+    const Branch = (await import('../branch/branch.model')).default;
+    const Rating = (await import('../rating/rating.model')).default;
+
+    branchesList = await Branch.find({ tenant: tenant._id });
+    const branchIds = branchesList.map((b) => b._id);
+
+    if (branchIds.length > 0) {
+      const ratingAgg = await Rating.aggregate([
+        { $match: { branch: { $in: branchIds } } },
+        { $group: { _id: null, avg: { $avg: '$rating' } } },
+      ]);
+      avgRating = ratingAgg[0]?.avg ?? 0;
+    }
+  }
+
   return {
     ...ownerObj.toObject(),
     tenant: tenant ?? null,
+    branches: branchesList,
+    avgRating,
   };
 };
 
@@ -105,6 +125,7 @@ export const updateOwner = async (
     pincode?: string;
     paymentAmount?: number;
     paymentMode?: 'cash' | 'upi';
+    upiId?: string;
     subscription?: 'monthly' | 'yearly' | 'onetime';
   }
 ) => {
@@ -146,6 +167,7 @@ export const updateOwner = async (
     if (data.pincode !== undefined) tenant.pincode = data.pincode || null;
     if (data.paymentAmount !== undefined) tenant.paymentAmount = data.paymentAmount;
     if (data.paymentMode !== undefined) tenant.paymentMode = data.paymentMode;
+    if (data.upiId !== undefined) tenant.upiId = data.upiId || null;
     if (data.subscription !== undefined) tenant.subscription = data.subscription;
     await tenant.save();
   }
@@ -168,6 +190,7 @@ export const createOwner = async (data: {
   pincode?: string;
   paymentAmount: number;
   paymentMode?: 'cash' | 'upi';
+  upiId?: string;
   subscription: 'monthly' | 'yearly' | 'onetime';
 }) => {
   const existing = await User.findOne({ email: data.email });
@@ -208,6 +231,7 @@ export const createOwner = async (data: {
     pincode: data.pincode ?? null,
     paymentAmount: data.paymentAmount,
     paymentMode: data.paymentMode ?? 'cash',
+    upiId: data.upiId ?? null,
     subscription: data.subscription,
   });
 
