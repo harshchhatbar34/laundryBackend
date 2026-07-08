@@ -56,11 +56,26 @@ export const createBranch = async (
 export const updateBranch = async (
   branchId: string,
   ownerId: Types.ObjectId | string,
-  updates: Partial<{ name: string; addressLine: string; city: string; phone: string }>
+  updates: Partial<{ 
+    name: string; 
+    addressLine: string; 
+    landmark: string;
+    city: string; 
+    phone: string;
+    location: { coordinates: [number, number] };
+  }>
 ) => {
+  const updateFields: any = { ...updates };
+  if (updates.location) {
+    updateFields.location = {
+      type: 'Point',
+      coordinates: updates.location.coordinates,
+    };
+  }
+
   const branch = await Branch.findOneAndUpdate(
     { _id: branchId, owner: ownerId },
-    { $set: updates },
+    { $set: updateFields },
     { new: true, runValidators: true }
   );
   if (!branch) throw Object.assign(new Error('Branch not found'), { statusCode: 404 });
