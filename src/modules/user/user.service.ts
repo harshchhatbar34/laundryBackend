@@ -52,6 +52,42 @@ export const deleteAddress = async (
   if (!address) throw Object.assign(new Error('Address not found'), { statusCode: 404 });
 };
 
+export const updateAddress = async (
+  addressId: string,
+  userId: Types.ObjectId | string,
+  updates: {
+    label?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    location?: { coordinates: [number, number] };
+    isDefault?: boolean;
+  }
+) => {
+  if (updates.isDefault) {
+    await Address.updateMany({ user: userId }, { $set: { isDefault: false } });
+  }
+
+  const updateFields: any = { ...updates };
+  if (updates.location) {
+    updateFields.location = {
+      type: 'Point',
+      coordinates: updates.location.coordinates,
+    };
+  }
+
+  const address = await Address.findOneAndUpdate(
+    { _id: addressId, user: userId },
+    { $set: updateFields },
+    { new: true, runValidators: true }
+  );
+
+  if (!address) throw Object.assign(new Error('Address not found'), { statusCode: 404 });
+  return address;
+};
+
 export const updatePushToken = async (
   userId: Types.ObjectId | string,
   pushToken: string | null
