@@ -77,7 +77,8 @@ const orderSchema = new Schema<IOrder>(
 orderSchema.pre('save', async function (this: any, next) {
   if (!this.orderNumber) {
     const count = await mongoose.model('Order').countDocuments();
-    this.orderNumber = `LND-${String(count + 1).padStart(6, '0')}`;
+    const timestamp = Date.now().toString().slice(-4);
+    this.orderNumber = `LND-${String(count + 1).padStart(4, '0')}-${timestamp}`;
   }
   next();
 });

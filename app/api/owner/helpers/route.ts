@@ -18,8 +18,8 @@ export const GET = withRole('owner')(async (req: NextRequest, ctx: AuthContext) 
     return sendSuccess(200, 'Helpers fetched', result);
   } catch (err: unknown) {
     console.error("GET /api/owner/helpers ERROR:", err);
-    const e = err as { message?: string; statusCode?: number; stack?: string };
-    return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error', [e.stack]);
+    const e = err as { message?: string; statusCode?: number };
+    return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');
   }
 });
 

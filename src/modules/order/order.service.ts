@@ -50,7 +50,7 @@ const calculatePricing = async (
       throw Object.assign(new Error('Invalid service, material, or item in cart.'), { statusCode: 400 });
     }
 
-    const unitPrice = (materialDoc.price || 0) + (itemDoc.price || 0);
+    const unitPrice = (serviceDoc.price || 0) + (materialDoc.price || 0) + (itemDoc.price || 0);
     const lineTotal = unitPrice * orderItem.quantity;
     
     subtotal += lineTotal;
@@ -342,7 +342,10 @@ export const ownerRespondToOrder = async (
   action: 'accept' | 'reject',
   note?: string
 ) => {
-  const order = await Order.findOne({ _id: orderId }).populate('branch');
+  const tenant = await Tenant.findOne({ owner: ownerId });
+  if (!tenant) throw Object.assign(new Error('Tenant not found for owner'), { statusCode: 403 });
+
+  const order = await Order.findOne({ _id: orderId, tenant: tenant._id }).populate('branch');
   if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
 
   if (order.status !== 'pending') {
@@ -470,8 +473,8 @@ export const helperUpdateBill = async (
     if (!order) throw Object.assign(new Error('Order not found or not assigned to you'), { statusCode: 404 });
   }
 
-  if (!['accepted', 'pickup'].includes(order.status)) {
-    throw Object.assign(new Error('Order cannot be updated once it has been picked up.'), { statusCode: 400 });
+  if (!['accepted', 'pickup', 'picked_up'].includes(order.status)) {
+    throw Object.assign(new Error('Order cannot be updated once processing has started.'), { statusCode: 400 });
   }
 
   // Recalculate pricing based on actual items
@@ -592,7 +595,7 @@ export const getBranchStats = async (branchId: string) => {
       Order.countDocuments({ branch: branchId, status: 'pending' }),
       Order.countDocuments({ branch: branchId, createdAt: { $gte: today } }),
       Order.aggregate([
-        { $match: { branch: branchObjectId, status: 'completed' } },
+        { $match: { branch: branchObjectId, status: { $in: ['delivered', 'completed'] } } },
         { $group: { _id: null, total: { $sum: '$pricing.total' } } },
       ]),
       Order.aggregate([
@@ -600,7 +603,7 @@ export const getBranchStats = async (branchId: string) => {
           $match: {
             branch: branchObjectId,
             createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-            status: 'completed',
+            status: { $in: ['delivered', 'completed'] },
           },
         },
         {
@@ -658,7 +661,7 @@ export const getTenantStats = async (tenantId: string) => {
       Order.countDocuments({ tenant: tenantObjectId, status: 'pending' }),
       Order.countDocuments({ tenant: tenantObjectId, createdAt: { $gte: today } }),
       Order.aggregate([
-        { $match: { tenant: tenantObjectId, status: 'completed' } },
+        { $match: { tenant: tenantObjectId, status: { $in: ['delivered', 'completed'] } } },
         { $group: { _id: null, total: { $sum: '$pricing.total' } } },
       ]),
       Order.aggregate([
@@ -666,7 +669,7 @@ export const getTenantStats = async (tenantId: string) => {
           $match: {
             tenant: tenantObjectId,
             createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-            status: 'completed',
+            status: { $in: ['delivered', 'completed'] },
           },
         },
         {
