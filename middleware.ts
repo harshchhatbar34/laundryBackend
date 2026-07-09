@@ -1,20 +1,25 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 
-// ─── Public routes (no token required) ───────────────────────────────────────
+// ─── Public API routes (no token required) ────────────────────────────────────
 const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
+  '/api/admin-auth/login',
 ];
 
-// ─── Helper: is this route public? ───────────────────────────────────────────
+// ─── Admin public pages (no cookie required) ─────────────────────────────────
+const ADMIN_PUBLIC_PAGES = ['/admin/login'];
+
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 }
 
+function isAdminPublicPage(pathname: string): boolean {
+  return ADMIN_PUBLIC_PAGES.some((p) => pathname.startsWith(p));
+}
+
 // ─── Helper: CORS headers ─────────────────────────────────────────────────────
-// Allow any origin so mobile apps (Flutter, React Native, Expo) and web frontends
-// can all connect without CORS issues.
 function applyCorsHeaders(response: NextResponse): NextResponse {
   response.headers.set('Access-Control-Allow-Origin', '*');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -31,17 +36,74 @@ export async function middleware(req: NextRequest) {
     console.log(`[REQ] ${req.method} ${pathname}`);
   }
 
-  // ── Handle CORS preflight (OPTIONS) ────────────────────────────────────────
-  if (req.method === 'OPTIONS') {
+  // ── Handle CORS preflight (OPTIONS) — only for /api/* ──────────────────────
+  if (req.method === 'OPTIONS' && pathname.startsWith('/api/')) {
     return applyCorsHeaders(new NextResponse(null, { status: 200 }));
   }
 
-  // ── Skip auth check for public routes ──────────────────────────────────────
+  // ════════════════════════════════════════════════════════════
+  // ADMIN PAGE PROTECTION  (/admin/*)
+  // ════════════════════════════════════════════════════════════
+  if (pathname.startsWith('/admin/')) {
+    // Let login page through
+    if (isAdminPublicPage(pathname)) {
+      return NextResponse.next();
+    }
+
+    const adminToken = req.cookies.get('admin_token')?.value;
+
+    if (!adminToken) {
+      return NextResponse.redirect(new URL('/admin/login', req.url));
+    }
+
+    try {
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+      const { payload } = await jwtVerify(adminToken, secret);
+
+      if (payload['role'] !== 'superadmin') {
+        const res = NextResponse.redirect(new URL('/admin/login', req.url));
+        res.cookies.delete('admin_token');
+        return res;
+      }
+
+      return NextResponse.next();
+    } catch {
+      const res = NextResponse.redirect(new URL('/admin/login', req.url));
+      res.cookies.delete('admin_token');
+      return res;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════
+  // API PROTECTION  (/api/*)
+  // ════════════════════════════════════════════════════════════
+
+  // Skip auth check for public routes
   if (isPublicRoute(pathname)) {
     return applyCorsHeaders(NextResponse.next());
   }
 
-  // ── Verify JWT for all other /api/* routes ──────────────────────────────────
+  // ── For /api/superadmin/* also accept admin_token cookie (used by admin UI) ──
+  if (pathname.startsWith('/api/superadmin/') || pathname.startsWith('/api/admin-auth/')) {
+    const adminToken = req.cookies.get('admin_token')?.value;
+    if (adminToken) {
+      try {
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+        const { payload } = await jwtVerify(adminToken, secret);
+        if (payload['role'] === 'superadmin') {
+          const requestHeaders = new Headers(req.headers);
+          requestHeaders.set('x-user-id', payload['id'] as string);
+          requestHeaders.set('x-user-role', payload['role'] as string);
+          const response = NextResponse.next({ request: { headers: requestHeaders } });
+          return applyCorsHeaders(response);
+        }
+      } catch {
+        // fall through to Bearer token check below
+      }
+    }
+  }
+
+  // Verify JWT Bearer token
   const authHeader = req.headers.get('authorization');
 
   if (!authHeader?.startsWith('Bearer ')) {
@@ -59,8 +121,6 @@ export async function middleware(req: NextRequest) {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET);
     const { payload } = await jwtVerify(token, secret);
 
-    // ── Inject decoded user info into request headers ─────────────────────────
-    // Route handlers can read these via req.headers.get('x-user-id') etc.
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set('x-user-id', payload['id'] as string);
     requestHeaders.set('x-user-role', payload['role'] as string);
@@ -85,7 +145,7 @@ export async function middleware(req: NextRequest) {
   }
 }
 
-// Apply middleware to all API routes
+// Apply middleware to API + Admin routes
 export const config = {
-  matcher: '/api/:path*',
+  matcher: ['/api/:path*', '/admin/:path*'],
 };

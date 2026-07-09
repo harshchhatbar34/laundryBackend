@@ -73,12 +73,27 @@ const orderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
-// Auto-generate human-readable order number
+// Auto-generate tenant-scoped order number.
+// Format: <4-char tenantCode prefix>-<4-digit per-tenant sequence>
+// e.g. ABC1-0001, ABC1-0002 for owner A; XYZ9-0001, XYZ9-0002 for owner B
 orderSchema.pre('save', async function (this: any, next) {
-  if (!this.orderNumber) {
-    const count = await mongoose.model('Order').countDocuments();
-    const timestamp = Date.now().toString().slice(-4);
-    this.orderNumber = `LND-${String(count + 1).padStart(4, '0')}-${timestamp}`;
+  if (!this.orderNumber && this.tenant) {
+    try {
+      // 1. Get tenant's code for the prefix
+      const Tenant = mongoose.model('Tenant');
+      const tenant = await Tenant.findById(this.tenant).select('tenantCode').lean();
+      const prefix = tenant
+        ? String((tenant as any).tenantCode).slice(0, 4).toUpperCase()
+        : 'ORD';
+
+      // 2. Count existing orders for THIS tenant only → per-tenant sequence
+      const tenantOrderCount = await mongoose.model('Order').countDocuments({ tenant: this.tenant });
+
+      this.orderNumber = `${prefix}-${String(tenantOrderCount + 1).padStart(4, '0')}`;
+    } catch {
+      // Fallback: timestamp-based to avoid blocking order creation
+      this.orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
+    }
   }
   next();
 });

@@ -50,3 +50,7 @@ Thumbs.db
 *.mov
 *.wmv
 
+# AI agent config (not for version control)
+.agents/
+.claude/
+

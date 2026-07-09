@@ -6,44 +6,30 @@ import { getOwnerById, updateOwner } from '@/src/modules/admin/admin.service';
 import type { AuthContext } from '@/types';
 
 // GET /api/superadmin/owners/[id]
-export const GET = withRole('superadmin')(
-  async (_req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
-    try {
-      await connectDB();
-      const owner = await getOwnerById(ctx.params.id);
-      return sendSuccess(200, 'Owner details fetched', { owner });
-    } catch (err: unknown) {
-      const e = err as { message?: string; statusCode?: number };
-      return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');
-    }
+export const GET = withRole('superadmin')(async (_req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
+  try {
+    await connectDB();
+    const id = (ctx as any).params?.id;
+    if (!id) return sendError(400, 'Owner id is required');
+    const owner = await getOwnerById(id);
+    return sendSuccess(200, 'Owner fetched', owner);
+  } catch (err: unknown) {
+    const e = err as { message?: string; statusCode?: number };
+    return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');
   }
-);
+});
 
-// PUT /api/superadmin/owners/[id] — update owner details
-export const PUT = withRole('superadmin')(
-  async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
-    try {
-      await connectDB();
-      const body = await req.json();
-
-      // Validate subscription option if provided
-      if (body.subscription) {
-        const validSubscriptions = ['monthly', 'yearly', 'onetime'];
-        if (!validSubscriptions.includes(body.subscription)) {
-          return sendError(400, `subscription must be one of: ${validSubscriptions.join(', ')}`);
-        }
-      }
-
-      // Validate paymentMode option if provided
-      if (body.paymentMode && !['cash', 'upi'].includes(body.paymentMode)) {
-        return sendError(400, 'paymentMode must be either "cash" or "upi"');
-      }
-
-      const updated = await updateOwner(ctx.params.id, body);
-      return sendSuccess(200, 'Owner details updated successfully', { owner: updated });
-    } catch (err: unknown) {
-      const e = err as { message?: string; statusCode?: number };
-      return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');
-    }
+// PATCH /api/superadmin/owners/[id] — update owner + tenant details
+export const PATCH = withRole('superadmin')(async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
+  try {
+    await connectDB();
+    const id = (ctx as any).params?.id;
+    if (!id) return sendError(400, 'Owner id is required');
+    const data = await req.json();
+    const updated = await updateOwner(id, data);
+    return sendSuccess(200, 'Owner updated', updated);
+  } catch (err: unknown) {
+    const e = err as { message?: string; statusCode?: number };
+    return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');
   }
-);
+});

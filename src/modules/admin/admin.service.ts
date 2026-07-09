@@ -58,10 +58,16 @@ export const getAllOwners = async (page = 1, limit = 20, search?: string, isActi
         {
           $project: {
             name: 1,
+            email: 1,
             mobileNumber: 1,
             isActive: 1,
             photo: 1,
-            laundryName: { $ifNull: ['$tenant.laundryName', null] },
+            createdAt: 1,
+            laundryName:   { $ifNull: ['$tenant.laundryName', null] },
+            tenantCode:    { $ifNull: ['$tenant.tenantCode', null] },
+            subscription:  { $ifNull: ['$tenant.subscription', null] },
+            paymentAmount: { $ifNull: ['$tenant.paymentAmount', null] },
+            city:          { $ifNull: ['$tenant.city', null] },
           },
         },
       ],
@@ -467,6 +473,54 @@ export const getSuperadminStats = async () => {
     totalOrders,
     totalRevenue,
   };
+};
+
+/**
+ * Returns orders grouped by day for the past `days` days (default 7).
+ * Each entry: { day: 'Mon 7', orders: 4, revenue: 1200 }
+ */
+export const getOrderTrend = async (days = 7) => {
+  const now = new Date();
+  const since = new Date(now);
+  since.setDate(since.getDate() - (days - 1));
+  since.setHours(0, 0, 0, 0);
+
+  const raw = await Order.aggregate([
+    { $match: { createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id: {
+          year:  { $year:  '$createdAt' },
+          month: { $month: '$createdAt' },
+          day:   { $dayOfMonth: '$createdAt' },
+        },
+        orders:  { $sum: 1 },
+        revenue: { $sum: '$totalAmount' },
+      },
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+  ]);
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const result: { day: string; orders: number; revenue: number }[] = [];
+
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(since.getDate() + i);
+    const match = raw.find(
+      r =>
+        r._id.year  === d.getFullYear() &&
+        r._id.month === d.getMonth() + 1 &&
+        r._id.day   === d.getDate()
+    );
+    result.push({
+      day:     `${DAY_NAMES[d.getDay()]} ${d.getDate()}`,
+      orders:  match?.orders  ?? 0,
+      revenue: match?.revenue ?? 0,
+    });
+  }
+
+  return result;
 };
 
 // ─── Helper CRUD (for Owner) ──────────────────────────────────────────────────
