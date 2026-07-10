@@ -27,7 +27,6 @@ export default function DashboardPage() {
   const { data: trend = [], isLoading: trendLoading } = useOrderTrend(period);
 
   const totalOrdersInPeriod = (trend as any[]).reduce((s: number, d: any) => s + (d.orders ?? 0), 0);
-  const totalRevenueInPeriod = (trend as any[]).reduce((s: number, d: any) => s + (d.revenue ?? 0), 0);
 
   const cards = [
     { title: 'Total Owners',     value: statsLoading ? '—' : (stats?.totalOwners   ?? 0),                   icon: UserCheck,     color: 'cyan'   as const, path: '/admin/owners'    },
@@ -94,12 +93,6 @@ export default function DashboardPage() {
                 {trendLoading ? '—' : totalOrdersInPeriod}
               </p>
             </div>
-            <div>
-              <p className="text-xs text-slate-400">Revenue in period</p>
-              <p className="text-xl font-display font-bold text-cyan-500">
-                {trendLoading ? '—' : formatCurrency(totalRevenueInPeriod)}
-              </p>
-            </div>
           </div>
 
           {trendLoading ? (
@@ -143,9 +136,7 @@ export default function DashboardPage() {
                   }}
                   labelStyle={{ color: '#e2e8f0' }}
                   itemStyle={{ color: '#22D3EE' }}
-                  formatter={(value: any, name: any) =>
-                    name === 'revenue' ? [formatCurrency(value), 'Revenue'] : [value, 'Orders']
-                  }
+                  formatter={(value: any) => [value, 'Orders']}
                 />
                 <Area
                   type="monotone"
