@@ -104,4 +104,26 @@ export const api = {
   // Tenants
   getTenants: (params?: Record<string, unknown>) =>
     adminApi.get('/api/superadmin/tenants', { params }).then(r => normalizePaginated(r.data, 'tenants')),
+
+  // Subscriptions
+  getSubscriptions: (params?: Record<string, unknown>) =>
+    adminApi.get('/api/superadmin/subscriptions', { params }).then(r => r.data?.data ?? {}),
+  getSubscriptionStats: () =>
+    adminApi.get('/api/superadmin/subscriptions/stats').then(r => r.data?.data?.stats ?? {}),
+  createSubscription: (data: unknown) =>
+    adminApi.post('/api/superadmin/subscriptions', data).then(r => r.data),
+  updateSubscription: (id: string, data: unknown) =>
+    adminApi.patch(`/api/superadmin/subscriptions/${id}`, data).then(r => r.data),
+  deleteSubscription: (id: string) =>
+    adminApi.delete(`/api/superadmin/subscriptions/${id}`).then(r => r.data),
+  markSubscriptionPaid: (id: string, data: unknown) =>
+    adminApi.patch(`/api/superadmin/subscriptions/${id}`, { action: 'markPaid', ...data as object }).then(r => r.data),
+  exportSubscriptions: (params: Record<string, string>) => {
+    const qs = new URLSearchParams(params).toString();
+    return `${typeof window !== 'undefined' ? window.location.origin : ''}/api/superadmin/subscriptions/export?${qs}`;
+  },
+
+  // Owner payment history
+  getOwnerPayments: (ownerId: string) =>
+    adminApi.get(`/api/superadmin/owners/${ownerId}/payments`).then(r => r.data?.data?.payments ?? []),
 };

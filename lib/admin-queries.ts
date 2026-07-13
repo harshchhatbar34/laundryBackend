@@ -11,6 +11,18 @@ export const useAdminProfile = () =>
     queryFn: () => adminApi.get('/api/admin-auth/me').then((r: any) => r.data?.data?.user ?? null),
     staleTime: 5 * 60_000,
   });
+export const useUpdateAdminProfile = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name?: string; upiId?: string }) =>
+      adminApi.patch('/api/admin-auth/me', data).then((r: any) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-profile'] });
+      toast.success('Profile updated');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to update profile'),
+  });
+};
 
 // ── Stats ─────────────────────────────────────────────────────
 export const usePlatformStats = () =>
@@ -109,3 +121,66 @@ export const useDeleteCoupon = () => {
 // ── Tenants ──────────────────────────────────────────────────
 export const useTenants = (params?: Record<string, unknown>) =>
   useQuery({ queryKey: ['tenants', params], queryFn: () => api.getTenants(params) });
+
+// ── Subscriptions ─────────────────────────────────────────────
+export const useSubscriptions = (params?: Record<string, unknown>) =>
+  useQuery({
+    queryKey: ['subscriptions', params],
+    queryFn: () => api.getSubscriptions(params),
+    staleTime: 30_000,
+  });
+
+export const useSubscriptionStats = () =>
+  useQuery({
+    queryKey: ['subscription-stats'],
+    queryFn: () => api.getSubscriptionStats(),
+    staleTime: 30_000,
+  });
+
+export const useCreateSubscription = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.createSubscription,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subscriptions'] });
+      qc.invalidateQueries({ queryKey: ['subscription-stats'] });
+      toast.success('Subscription record created');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to create subscription'),
+  });
+};
+
+export const useMarkSubscriptionPaid = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: unknown }) => api.markSubscriptionPaid(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subscriptions'] });
+      qc.invalidateQueries({ queryKey: ['subscription-stats'] });
+      toast.success('Payment recorded — next cycle created');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to record payment'),
+  });
+};
+
+export const useDeleteSubscription = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteSubscription,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['subscriptions'] });
+      qc.invalidateQueries({ queryKey: ['subscription-stats'] });
+      toast.success('Subscription record deleted');
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to delete'),
+  });
+};
+
+// ── Owner Payment History ─────────────────────────────────────
+export const useOwnerPayments = (ownerId: string) =>
+  useQuery({
+    queryKey: ['owner-payments', ownerId],
+    queryFn: () => api.getOwnerPayments(ownerId),
+    enabled: !!ownerId,
+    staleTime: 30_000,
+  });

@@ -192,6 +192,20 @@ export interface IOrder extends Document {
   scheduledDelivery: Date | null;   // set after pickup; updated on reschedule
   status: OrderStatus;
   timeline: ITimelineEntry[];
+  // ── Per-status timestamps (one dedicated column per status) ──────────────
+  pendingAt?: Date;
+  acceptedAt?: Date;
+  rejectedAt?: Date;
+  pickupAt?: Date;
+  pickedUpAt?: Date;
+  processingAt?: Date;
+  readyAt?: Date;
+  outForDeliveryAt?: Date;
+  deliveredAt?: Date;
+  completedAt?: Date;
+  cancelledAt?: Date;
+  failedDeliveryAt?: Date;
+  // ─────────────────────────────────────────────────────────────────────────
   coupon: Types.ObjectId | null;
   pricing: {
     subtotal: number;
@@ -243,4 +257,36 @@ export interface AuthContext<P extends Record<string, string> = Record<string, s
     _id: Types.ObjectId;
     role: UserRole;
   };
+}
+
+// ─── Subscription Record ─────────────────────────────────────────────────────
+export interface ISubscriptionRecord extends Document {
+  _id: Types.ObjectId;
+  tenant: Types.ObjectId;
+  owner: Types.ObjectId;
+  subscriptionType: 'monthly' | 'yearly';
+  amount: number;
+  startDate: Date;
+  dueDate: Date;
+  status: 'pending' | 'paid' | 'overdue';
+  paidMethod?: 'cash' | 'upi';
+  paidDate?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ─── Payment Record ───────────────────────────────────────────────────────────
+export interface IPaymentRecord extends Document {
+  _id: Types.ObjectId;
+  subscription: Types.ObjectId;
+  tenant: Types.ObjectId;
+  owner: Types.ObjectId;
+  amount: number;
+  paidDate: Date;
+  paymentMethod: 'cash' | 'upi';
+  notes?: string;
+  recordedBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
 }

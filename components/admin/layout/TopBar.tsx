@@ -9,9 +9,10 @@ import Link from 'next/link';
 interface TopBarProps {
   title: string;
   subtitle?: string;
+  actions?: React.ReactNode;
 }
 
-export function TopBar({ title, subtitle }: TopBarProps) {
+export function TopBar({ title, subtitle, actions }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const { data: admin } = useAdminProfile();
 
@@ -25,7 +26,9 @@ export function TopBar({ title, subtitle }: TopBarProps) {
         {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
+        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        <div className="flex items-center gap-2">
         {/* Dark mode toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -59,6 +62,7 @@ export function TopBar({ title, subtitle }: TopBarProps) {
             <p className="text-[10px] text-slate-400 mt-0.5">Qwasho Platform</p>
           </div>
         </Link>
+        </div>
       </div>
     </header>
   );

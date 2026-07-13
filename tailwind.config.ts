@@ -4,7 +4,6 @@ const config: Config = {
   darkMode: 'class',
   content: [
     './app/admin/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/(admin)/**/*.{js,ts,jsx,tsx,mdx}',
     './components/admin/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {

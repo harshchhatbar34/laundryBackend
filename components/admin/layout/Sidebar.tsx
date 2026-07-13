@@ -5,17 +5,18 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   LayoutDashboard, Users, UserCheck, ClipboardList,
-  Tag, Building2, LogOut, ChevronLeft, ChevronRight,
+  Tag, Building2, LogOut, ChevronLeft, ChevronRight, CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/owners',    icon: UserCheck,       label: 'Owners'    },
-  { href: '/admin/customers', icon: Users,           label: 'Customers' },
-  { href: '/admin/orders',    icon: ClipboardList,   label: 'Orders'    },
-  { href: '/admin/coupons',   icon: Tag,             label: 'Coupons'   },
-  { href: '/admin/tenants',   icon: Building2,       label: 'Tenants'   },
+  { href: '/admin/dashboard',     icon: LayoutDashboard, label: 'Dashboard'             },
+  { href: '/admin/owners',        icon: UserCheck,       label: 'Owners'                },
+  { href: '/admin/customers',     icon: Users,           label: 'Customers'             },
+  { href: '/admin/orders',        icon: ClipboardList,   label: 'Orders'                },
+  { href: '/admin/subscriptions', icon: CalendarDays,    label: 'Subscription Calendar' },
+  { href: '/admin/coupons',       icon: Tag,             label: 'Coupons'               },
+  { href: '/admin/tenants',       icon: Building2,       label: 'Tenants'               },
 ];
 
 export function Sidebar() {

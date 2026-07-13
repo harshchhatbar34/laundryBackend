@@ -4,8 +4,8 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { X, Loader2 } from 'lucide-react';
-import { useCreateOwner, useUpdateOwner } from '@/lib/admin-queries';
+import { X, Loader2, AlertTriangle } from 'lucide-react';
+import { useCreateOwner, useUpdateOwner, useAdminProfile } from '@/lib/admin-queries';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
@@ -37,6 +37,7 @@ export function OwnerFormSheet({ open, onClose, owner }: OwnerFormSheetProps) {
   const isEdit = !!owner?._id;
   const createOwner = useCreateOwner();
   const updateOwner = useUpdateOwner();
+  const { data: admin } = useAdminProfile();
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<OwnerForm>({
     resolver: zodResolver(schema) as any,
@@ -45,6 +46,7 @@ export function OwnerFormSheet({ open, onClose, owner }: OwnerFormSheetProps) {
 
   const subscription = watch('subscription');
   const paymentMode  = watch('paymentMode');
+  const paymentAmount = watch('paymentAmount');
 
   useEffect(() => {
     if (owner && open) {
@@ -139,6 +141,10 @@ export function OwnerFormSheet({ open, onClose, owner }: OwnerFormSheetProps) {
               <label className="qwasho-label">Pincode</label>
               <input {...register('pincode')} className="qwasho-input" placeholder="400001" />
             </div>
+            <div className="col-span-2">
+              <label className="qwasho-label">Owner UPI ID (for customer payments)</label>
+              <input {...register('upiId')} className="qwasho-input" placeholder="owner@upi" />
+            </div>
           </div>
 
           {/* Subscription */}
@@ -162,7 +168,7 @@ export function OwnerFormSheet({ open, onClose, owner }: OwnerFormSheetProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="qwasho-label">Fee (₹)</label>
-              <input {...register('paymentAmount')} type="number" className="qwasho-input" placeholder="999" />
+              <input {...register('paymentAmount', { valueAsNumber: true })} type="number" className="qwasho-input" placeholder="999" />
             </div>
             <div>
               <label className="qwasho-label">Payment Mode</label>
@@ -183,10 +189,37 @@ export function OwnerFormSheet({ open, onClose, owner }: OwnerFormSheetProps) {
                 ))}
               </div>
             </div>
+
+            {/* Dynamic UPI QR Code using Admin UPI ID and Payment Amount */}
             {paymentMode === 'upi' && (
-              <div className="col-span-2">
-                <label className="qwasho-label">UPI ID</label>
-                <input {...register('upiId')} className="qwasho-input" placeholder="raj@upi" />
+              <div className="col-span-2 border border-surface-border dark:border-dark-border rounded-xl p-3 bg-surface-50 dark:bg-dark-100/50 text-center space-y-2">
+                {!paymentAmount || Number(paymentAmount) <= 0 ? (
+                  <p className="text-xs text-amber-500 dark:text-amber-400 font-semibold p-1 leading-normal">
+                    Please enter a valid Fee amount first to generate the payment QR code.
+                  </p>
+                ) : admin?.upiId ? (
+                  <>
+                    <div className="mx-auto w-[130px] h-[130px] bg-white p-2 rounded-xl border border-slate-100 dark:border-dark-100 flex items-center justify-center shadow-inner">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(
+                          `upi://pay?pa=${admin.upiId}&pn=${encodeURIComponent("Qwasho Platform")}&am=${paymentAmount}&cu=INR&tn=${encodeURIComponent(`Sub-${(owner as any)?.tenantCode || 'New'}`)}`
+                        )}`}
+                        alt="UPI QR Code"
+                        className="w-[110px] h-[110px] object-contain"
+                      />
+                    </div>
+                    <div className="text-[10px] text-slate-450 dark:text-slate-300">
+                      <p className="font-semibold text-slate-700 dark:text-slate-200">Scan QR Code to collect Fee (₹{paymentAmount}) via UPI</p>
+                      <p className="font-mono mt-0.5">{admin.upiId}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-amber-500 dark:text-amber-400 text-xs p-1 space-y-1 leading-normal">
+                    <AlertTriangle className="mx-auto text-amber-500 animate-pulse" size={16} />
+                    <p className="font-semibold">Admin UPI ID not configured</p>
+                    <p className="text-[10px]">Configure your UPI ID in Profile settings to generate the payment QR code.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

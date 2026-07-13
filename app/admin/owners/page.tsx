@@ -11,9 +11,8 @@ import { ConfirmDialog } from '@/components/admin/ui/ConfirmDialog';
 import { OwnerFormSheet } from '@/components/admin/owners/OwnerFormSheet';
 import { useOwners, useToggleOwner } from '@/lib/admin-queries';
 import { formatDate, getInitials } from '@/lib/utils';
-import { Plus, Eye, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 export default function OwnersPage() {
   const router = useRouter();
@@ -71,7 +70,11 @@ export default function OwnersPage() {
                   </td>
                 </tr>
               ) : owners.map((owner: any) => (
-                <tr key={owner._id} className="table-row">
+                <tr
+                  key={owner._id}
+                  className="table-row cursor-pointer"
+                  onClick={() => router.push(`/admin/owners/${owner._id}`)}
+                >
                   <td className="table-cell">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-navy-700 flex items-center justify-center flex-shrink-0">
@@ -95,7 +98,10 @@ export default function OwnersPage() {
                   </td>
                   <td className="table-cell">
                     <button
-                      onClick={() => setConfirmToggle({ id: owner._id, name: owner.name, isActive: !owner.isActive })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setConfirmToggle({ id: owner._id, name: owner.name, isActive: !owner.isActive });
+                      }}
                       className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent
                                   transition-colors duration-200 focus:outline-none
                                   ${owner.isActive ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-dark-300'}`}
@@ -106,10 +112,14 @@ export default function OwnersPage() {
                   </td>
                   <td className="table-cell">
                     <div className="flex items-center justify-end gap-1">
-                      <Link href={`/admin/owners/${owner._id}`} className="qwasho-btn-ghost p-2">
-                        <Eye size={14} />
-                      </Link>
-                      <button onClick={() => { setEditOwner(owner); setSheetOpen(true); }} className="qwasho-btn-ghost p-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditOwner(owner);
+                          setSheetOpen(true);
+                        }}
+                        className="qwasho-btn-ghost p-2"
+                      >
                         <Pencil size={14} />
                       </button>
                     </div>

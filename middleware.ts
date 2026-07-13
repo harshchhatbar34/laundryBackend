@@ -44,7 +44,7 @@ export async function middleware(req: NextRequest) {
   // ════════════════════════════════════════════════════════════
   // ADMIN PAGE PROTECTION  (/admin/*)
   // ════════════════════════════════════════════════════════════
-  if (pathname.startsWith('/admin/')) {
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
     // Let login page through
     if (isAdminPublicPage(pathname)) {
       return NextResponse.next();

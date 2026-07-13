@@ -49,6 +49,20 @@ const orderSchema = new Schema<IOrder>(
       index: true,
     },
     timeline: [timelineSchema],
+    // ── Per-status timestamps — set once when each status is first applied ──
+    pendingAt:          { type: Date, default: null },
+    acceptedAt:         { type: Date, default: null },
+    rejectedAt:         { type: Date, default: null },
+    pickupAt:           { type: Date, default: null },
+    pickedUpAt:         { type: Date, default: null },
+    processingAt:       { type: Date, default: null },
+    readyAt:            { type: Date, default: null },
+    outForDeliveryAt:   { type: Date, default: null },
+    deliveredAt:        { type: Date, default: null },
+    completedAt:        { type: Date, default: null },
+    cancelledAt:        { type: Date, default: null },
+    failedDeliveryAt:   { type: Date, default: null },
+    // ────────────────────────────────────────────────────────────────────────
     coupon: { type: Schema.Types.ObjectId, ref: 'Coupon', default: null },
     pricing: {
       subtotal: { type: Number, default: 0 },

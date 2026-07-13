@@ -1,43 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminShell } from '@/components/admin/layout/AdminShell';
 import { TopBar } from '@/components/admin/layout/TopBar';
-import { useAdminProfile } from '@/lib/admin-queries';
+import { useAdminProfile, useUpdateAdminProfile } from '@/lib/admin-queries';
 import { formatDateTime, getInitials } from '@/lib/utils';
-import { Shield, Mail, Calendar, KeyRound, Loader2, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { adminApi } from '@/lib/admin-api';
+import { Shield, Mail, Calendar, Loader2, CheckCircle2, User as UserIcon, Pencil } from 'lucide-react';
 
 export default function AdminProfilePage() {
   const { data: admin, isLoading } = useAdminProfile();
+  const updateProfile = useUpdateAdminProfile();
 
-  const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
-  const [pwLoading, setPwLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', upiId: '' });
 
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pwForm.next !== pwForm.confirm) {
-      toast.error('New passwords do not match');
-      return;
-    }
-    if (pwForm.next.length < 8) {
-      toast.error('Password must be at least 8 characters');
-      return;
-    }
-    try {
-      setPwLoading(true);
-      await adminApi.patch('/api/admin-auth/change-password', {
-        currentPassword: pwForm.current,
-        newPassword: pwForm.next,
+  useEffect(() => {
+    if (admin) {
+      setProfileForm({
+        name: admin.name ?? '',
+        upiId: admin.upiId ?? '',
       });
-      toast.success('Password changed successfully');
-      setPwForm({ current: '', next: '', confirm: '' });
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Failed to change password');
-    } finally {
-      setPwLoading(false);
     }
+  }, [admin]);
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfile.mutate(profileForm, {
+      onSuccess: () => {
+        setIsEditing(false);
+      }
+    });
   };
 
   return (
@@ -94,77 +86,97 @@ export default function AdminProfilePage() {
             )}
           </div>
 
-          {/* Change Password */}
+          {/* Account Details */}
           <div className="admin-card p-6">
-            <div className="flex items-center gap-2 mb-5">
-              <KeyRound size={15} className="text-cyan-500" />
-              <h3 className="font-display font-semibold text-slate-800 dark:text-white text-sm">
-                Change Password
-              </h3>
-            </div>
-
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div>
-                <label className="qwasho-label">Current Password</label>
-                <input
-                  type="password"
-                  value={pwForm.current}
-                  onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))}
-                  className="qwasho-input"
-                  placeholder="••••••••"
-                  required
-                />
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <UserIcon size={15} className="text-cyan-500" />
+                <h3 className="font-display font-semibold text-slate-800 dark:text-white text-sm">
+                  Account Details
+                </h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="qwasho-label">New Password</label>
-                  <input
-                    type="password"
-                    value={pwForm.next}
-                    onChange={e => setPwForm(f => ({ ...f, next: e.target.value }))}
-                    className="qwasho-input"
-                    placeholder="Min 8 characters"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="qwasho-label">Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={pwForm.confirm}
-                    onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))}
-                    className="qwasho-input"
-                    placeholder="Repeat new password"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end pt-1">
+              {!isEditing && (
                 <button
-                  type="submit"
-                  disabled={pwLoading}
-                  className="qwasho-btn-primary disabled:opacity-60"
+                  onClick={() => setIsEditing(true)}
+                  className="qwasho-btn-ghost p-1.5 text-slate-400 hover:text-cyan-500"
+                  title="Edit details"
                 >
-                  {pwLoading && <Loader2 size={14} className="animate-spin" />}
-                  Update Password
+                  <Pencil size={14} />
                 </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Session info */}
-          <div className="admin-card p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Session</p>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">Role</span>
-                <span className="font-mono text-cyan-500 capitalize">{admin?.role ?? 'superadmin'}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-400">User ID</span>
-                <span className="font-mono text-xs text-slate-500 truncate ml-4">{admin?._id ?? '—'}</span>
-              </div>
+              )}
             </div>
+
+            {isEditing ? (
+              <form onSubmit={handleProfileSubmit} className="space-y-4">
+                <div>
+                  <label className="qwasho-label">Full Name</label>
+                  <input
+                    type="text"
+                    value={profileForm.name}
+                    onChange={e => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                    className="qwasho-input"
+                    placeholder="Super Admin"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="qwasho-label">UPI ID (For collecting payments from owners)</label>
+                  <input
+                    type="text"
+                    value={profileForm.upiId}
+                    onChange={e => setProfileForm(p => ({ ...p, upiId: e.target.value }))}
+                    className="qwasho-input font-mono"
+                    placeholder="admin@upi"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Owner subscription/payment QR codes will route payments to this UPI address.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false);
+                      if (admin) {
+                        setProfileForm({
+                          name: admin.name ?? '',
+                          upiId: admin.upiId ?? '',
+                        });
+                      }
+                    }}
+                    className="qwasho-btn-ghost px-4 py-2 text-xs"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={updateProfile.isPending}
+                    className="qwasho-btn-primary disabled:opacity-60"
+                  >
+                    {updateProfile.isPending && <Loader2 size={14} className="animate-spin" />}
+                    Save Details
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <div className="py-2.5 border-b border-surface-border/50 dark:border-dark-border/50">
+                  <p className="text-xs text-slate-400 font-medium mb-1">Full Name</p>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                    {admin?.name ?? '—'}
+                  </p>
+                </div>
+                <div className="py-2.5 last:border-0">
+                  <p className="text-xs text-slate-400 font-medium mb-1">UPI ID</p>
+                  <p className="text-sm font-mono text-cyan-500">
+                    {admin?.upiId ?? 'Not configured — click edit to add'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-1 leading-normal">
+                    UPI address used for generating owner billing QR codes.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>

@@ -9,6 +9,29 @@ import { createNotification } from '../notification/notification.service';
 import mongoose, { type Types } from 'mongoose';
 import type { OrderStatus } from '@/types';
 
+// ─── Status → Timestamp Field Map ────────────────────────────────────────────
+const STATUS_TIMESTAMP_FIELD: Partial<Record<OrderStatus, string>> = {
+  pending:          'pendingAt',
+  accepted:         'acceptedAt',
+  rejected:         'rejectedAt',
+  pickup:           'pickupAt',
+  picked_up:        'pickedUpAt',
+  processing:       'processingAt',
+  ready:            'readyAt',
+  out_for_delivery: 'outForDeliveryAt',
+  delivered:        'deliveredAt',
+  completed:        'completedAt',
+  cancelled:        'cancelledAt',
+  failed_delivery:  'failedDeliveryAt',
+};
+
+/** Sets the dedicated per-status timestamp field — only once (won't overwrite). */
+const stampStatusTime = (order: any, status: OrderStatus, at = new Date()) => {
+  const field = STATUS_TIMESTAMP_FIELD[status];
+  if (field && !order[field]) order[field] = at;
+};
+
+
 // ─── Status Filter Mapper ─────────────────────────────────────────────────────
 
 const mapStatusFilter = (status?: string): any => {
@@ -124,6 +147,7 @@ export const createOrder = async (
     paymentMethod: paymentMethod ?? 'cash',
     notes: notes ?? '',
     timeline: [{ status: 'pending', note: 'Order placed by customer', updatedBy: customerId }],
+    pendingAt: new Date(),
   });
 
   if (couponDoc) {
@@ -223,6 +247,7 @@ export const cancelOrder = async (orderId: string, customerId: Types.ObjectId | 
   }
 
   order.status = 'cancelled';
+  stampStatusTime(order, 'cancelled');
   order.timeline.push({ status: 'cancelled', note: 'Cancelled by customer', updatedBy: customerId as Types.ObjectId, updatedAt: new Date() });
   await order.save();
 
@@ -252,6 +277,7 @@ export const rescheduleDelivery = async (
 
   order.scheduledDelivery = new Date(newDeliveryDate);
   order.status = 'ready'; // revert to ready so helper can re-attempt delivery
+  stampStatusTime(order, 'ready');
   order.timeline.push({
     status: 'ready',
     note: `Customer rescheduled delivery to ${newDeliveryDate}`,
@@ -354,6 +380,7 @@ export const ownerRespondToOrder = async (
 
   const newStatus: OrderStatus = action === 'accept' ? 'accepted' : 'rejected';
   order.status = newStatus;
+  stampStatusTime(order, newStatus);
   order.timeline.push({ status: newStatus, note: note ?? '', updatedBy: ownerId as Types.ObjectId, updatedAt: new Date() });
   await order.save();
 
@@ -385,6 +412,7 @@ export const helperAcceptOrder = async (
 
   order.helper = helperId as Types.ObjectId;
   order.status = 'accepted';
+  stampStatusTime(order, 'accepted');
   order.timeline.push({ status: 'accepted', note: 'Accepted by helper', updatedBy: helperId as Types.ObjectId, updatedAt: new Date() });
   await order.save();
 
@@ -424,6 +452,7 @@ export const helperUpdateOrderStatus = async (
   }
 
   order.status = status;
+  stampStatusTime(order, status);
   order.timeline.push({ status, note: note ?? '', updatedBy: helperId as Types.ObjectId, updatedAt: new Date() });
 
   if (status === 'delivered') {
@@ -540,6 +569,7 @@ export const helperFailDelivery = async (orderId: string, helperId: Types.Object
   }
 
   order.status = 'failed_delivery';
+  stampStatusTime(order, 'failed_delivery');
   order.timeline.push({ status: 'failed_delivery', note: 'Customer unavailable at delivery', updatedBy: helperId as Types.ObjectId, updatedAt: new Date() });
   await order.save();
 

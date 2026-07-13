@@ -176,6 +176,11 @@ export const updateOwner = async (
     if (data.upiId !== undefined) tenant.upiId = data.upiId || null;
     if (data.subscription !== undefined) tenant.subscription = data.subscription;
     await tenant.save();
+
+    if (tenant.subscription === 'monthly' || tenant.subscription === 'yearly') {
+      const { syncTenantSubscriptionRecords } = await import('@/src/modules/subscription/subscription.service');
+      await syncTenantSubscriptionRecords(String(tenant._id));
+    }
   }
 
   // Retrieve fresh data excluding password
@@ -240,6 +245,17 @@ export const createOwner = async (data: {
     upiId: data.upiId ?? null,
     subscription: data.subscription,
   });
+
+  // Auto-create first subscription billing record (monthly/yearly only)
+  if (data.subscription === 'monthly' || data.subscription === 'yearly') {
+    const { createInitialSubscriptionRecord } = await import('@/src/modules/subscription/subscription.service');
+    await createInitialSubscriptionRecord({
+      tenantId: String(tenant._id),
+      ownerId:  String(owner._id),
+      subscriptionType: data.subscription,
+      amount: data.paymentAmount,
+    });
+  }
 
   return { owner, tenant };
 };
