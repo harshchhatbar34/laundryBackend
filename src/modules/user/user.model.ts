@@ -28,6 +28,8 @@ const userSchema = new Schema<IUser>(
     },
     isActive: { type: Boolean, default: true },
     pushToken: { type: String, default: null },
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordTokenExpiry: { type: Date, default: null },
   },
   {
 
@@ -35,6 +37,8 @@ const userSchema = new Schema<IUser>(
     toJSON: {
       transform: (_, ret: Record<string, unknown>) => {
         delete ret.password;
+        delete ret.resetPasswordToken;
+        delete ret.resetPasswordTokenExpiry;
         delete ret.__v;
         return ret;
       },

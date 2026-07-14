@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { Sun, Moon, Bell } from 'lucide-react';
 import { useAdminProfile } from '@/lib/admin-queries';
@@ -15,6 +16,11 @@ interface TopBarProps {
 export function TopBar({ title, subtitle, actions }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const { data: admin } = useAdminProfile();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const initials = getInitials(admin?.name ?? 'SA');
   const displayName = admin?.name ?? 'Super Admin';
@@ -35,10 +41,11 @@ export function TopBar({ title, subtitle, actions }: TopBarProps) {
           className="qwasho-btn-ghost w-9 h-9 justify-center p-0"
           title="Toggle theme"
         >
-          {theme === 'dark'
-            ? <Sun  size={16} className="text-yellow-400" />
-            : <Moon size={16} />
-          }
+          {mounted && theme === 'dark' ? (
+            <Sun size={16} className="text-yellow-400" />
+          ) : (
+            <Moon size={16} />
+          )}
         </button>
 
         {/* Notifications placeholder */}

@@ -54,6 +54,8 @@ export interface IUser extends Document {
   isActive: boolean;
   pushToken?: string;
   upiId?: string;
+  resetPasswordToken?: string;
+  resetPasswordTokenExpiry?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

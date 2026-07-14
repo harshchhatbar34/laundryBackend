@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import User from '../user/user.model';
 import Tenant from '../tenant/tenant.model';
 import Order from '../order/order.model';
@@ -190,7 +191,6 @@ export const updateOwner = async (
 export const createOwner = async (data: {
   name: string;
   email: string;
-  password: string;
   mobileNumber?: string;
   photo?: string;
   laundryName: string;
@@ -212,7 +212,10 @@ export const createOwner = async (data: {
     photoUrl = await uploadBase64ToS3(data.photo, 'owners');
   }
 
-  const hashed = await bcrypt.hash(data.password, 10);
+  const setupToken = crypto.randomBytes(32).toString('hex');
+  const tempPassword = crypto.randomBytes(16).toString('hex');
+  const hashed = await bcrypt.hash(tempPassword, 10);
+
   const owner = await User.create({
     name: data.name,
     email: data.email,
@@ -220,6 +223,8 @@ export const createOwner = async (data: {
     photo: photoUrl,
     password: hashed,
     role: 'owner',
+    resetPasswordToken: setupToken,
+    resetPasswordTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
   });
 
   // Auto-generate a unique 8-char alphanumeric tenant code
@@ -257,7 +262,7 @@ export const createOwner = async (data: {
     });
   }
 
-  return { owner, tenant };
+  return { owner, tenant, setupToken };
 };
 
 export const toggleOwnerActive = async (ownerId: string, isActive: boolean) => {

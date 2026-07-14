@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { sendSuccess, sendError } from '@/lib/apiResponse';
 import { withRole } from '@/lib/auth';
 import { getAllOwners, createOwner, toggleOwnerActive } from '@/src/modules/admin/admin.service';
+import { sendOwnerSetupEmail } from '@/src/lib/email';
 import type { AuthContext } from '@/types';
 
 // GET /api/superadmin/owners
@@ -40,8 +41,8 @@ export const POST = withRole('superadmin')(async (req: NextRequest, _ctx: AuthCo
   try {
     await connectDB();
     const body = await req.json();
-    if (!body.name || !body.email || !body.password || !body.laundryName || body.paymentAmount == null || !body.subscription) {
-      return sendError(400, 'name, email, password, laundryName, paymentAmount, and subscription are required');
+    if (!body.name || !body.email || !body.laundryName || body.paymentAmount == null || !body.subscription) {
+      return sendError(400, 'name, email, laundryName, paymentAmount, and subscription are required');
     }
     const validSubscriptions = ['monthly', 'yearly', 'onetime'];
     if (!validSubscriptions.includes(body.subscription)) {
@@ -50,8 +51,15 @@ export const POST = withRole('superadmin')(async (req: NextRequest, _ctx: AuthCo
     if (body.paymentMode && !['cash', 'upi'].includes(body.paymentMode)) {
       return sendError(400, 'paymentMode must be either "cash" or "upi"');
     }
-    const { owner, tenant } = await createOwner(body);
-    return sendSuccess(201, 'Laundry Owner created with tenant code', { owner, tenant });
+    const { owner, tenant, setupToken } = await createOwner(body);
+    const setupLink = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/set-password?token=${setupToken}`;
+    
+    // Automatically trigger onboarding password setup email to the owner
+    sendOwnerSetupEmail(owner.email, owner.name, tenant.laundryName, setupLink).catch((err) => {
+      console.error('[EMAIL] Failed to send password setup email:', err);
+    });
+
+    return sendSuccess(201, 'Laundry Owner created with tenant code', { owner, tenant, setupLink });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };
     return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');

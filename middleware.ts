@@ -5,6 +5,8 @@ import { jwtVerify } from 'jose';
 const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/admin-auth/login',
 ];
 
