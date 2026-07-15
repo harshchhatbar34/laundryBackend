@@ -21,9 +21,12 @@ export const GET = withAuth(async (_req: NextRequest, ctx: AuthContext) => {
       return sendError(400, 'User is not associated with any tenant');
     }
 
+    const url = new URL(_req.url);
+    const branchId = url.searchParams.get('branchId') || undefined;
+
     const [materials, items] = await Promise.all([
-      getOwnerMaterials(userDoc.tenantId, true),
-      getOwnerItems(userDoc.tenantId, true),
+      getOwnerMaterials(userDoc.tenantId, true, branchId),
+      getOwnerItems(userDoc.tenantId, true, branchId),
     ]);
 
     return sendSuccess(200, 'Masters fetched', { materials, items });

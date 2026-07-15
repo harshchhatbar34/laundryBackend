@@ -126,6 +126,8 @@ export interface IService extends Document {
   price: number;
   isActive: boolean;
   sortOrder: number;
+  branches?: Types.ObjectId[];
+  isAllBranches?: boolean;
 }
 
 // ─── Material ────────────────────────────────────────────────────────────────
@@ -135,6 +137,8 @@ export interface IMaterial extends Document {
   name: string;            // e.g. "Cotton", "Silk", "Wool"
   price: number;
   isActive: boolean;
+  branches?: Types.ObjectId[];
+  isAllBranches?: boolean;
 }
 
 // ─── Item ────────────────────────────────────────────────────────────────────
@@ -144,6 +148,8 @@ export interface IItem extends Document {
   name: string;            // e.g. "Shirt", "Trouser", "Saree"
   price: number;
   isActive: boolean;
+  branches?: Types.ObjectId[];
+  isAllBranches?: boolean;
 }
 
 // ─── Coupon ──────────────────────────────────────────────────────────────────

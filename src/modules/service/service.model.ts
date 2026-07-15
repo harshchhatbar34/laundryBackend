@@ -10,6 +10,8 @@ const serviceSchema = new Schema<IService>(
     price: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
+    branches: [{ type: Schema.Types.ObjectId, ref: 'Branch' }],
+    isAllBranches: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

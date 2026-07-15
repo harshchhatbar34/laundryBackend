@@ -21,7 +21,10 @@ export const GET = withAuth(async (_req: NextRequest, ctx: AuthContext) => {
       return sendError(400, 'User is not associated with any tenant');
     }
 
-    const services = await getOwnerServices(userDoc.tenantId, true);
+    const url = new URL(_req.url);
+    const branchId = url.searchParams.get('branchId') || undefined;
+
+    const services = await getOwnerServices(userDoc.tenantId, true, branchId);
     return sendSuccess(200, 'Services fetched', { services });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

@@ -7,6 +7,8 @@ const materialSchema = new Schema<IMaterial>(
     name: { type: String, required: true, trim: true },
     price: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    branches: [{ type: Schema.Types.ObjectId, ref: 'Branch' }],
+    isAllBranches: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

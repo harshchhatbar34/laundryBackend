@@ -77,9 +77,13 @@ export default function OwnersPage() {
                 >
                   <td className="table-cell">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-navy-700 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-bold text-white">{getInitials(owner.name ?? 'OW')}</span>
-                      </div>
+                      {owner.photo ? (
+                        <img src={owner.photo} alt={owner.name} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-navy-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-white">{getInitials(owner.name ?? 'OW')}</span>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{owner.name}</p>
                         <p className="text-xs text-slate-400">{owner.email}</p>

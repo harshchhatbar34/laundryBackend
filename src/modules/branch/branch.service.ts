@@ -1,5 +1,5 @@
+import mongoose, { Types } from 'mongoose';
 import Branch from './branch.model';
-import type { Types } from 'mongoose';
 
 /**
  * Find the nearest branch for a given tenant, using MongoDB $near geospatial query.
@@ -48,7 +48,23 @@ export const createBranch = async (
     phone: string;
     location: { coordinates: [number, number] };
   }
-) => Branch.create({ ...data, owner: ownerId, tenant: tenantId });
+) => {
+  const branch = await Branch.create({ ...data, owner: ownerId, tenant: tenantId });
+
+  // Dynamically load schemas to avoid circular dependency import errors
+  const Service = mongoose.model('Service');
+  const Material = mongoose.model('Material');
+  const Item = mongoose.model('Item');
+
+  // Link all existing catalog items that are configured for "All Branches"
+  await Promise.all([
+    Service.updateMany({ tenant: tenantId, isAllBranches: true }, { $addToSet: { branches: branch._id } }),
+    Material.updateMany({ tenant: tenantId, isAllBranches: true }, { $addToSet: { branches: branch._id } }),
+    Item.updateMany({ tenant: tenantId, isAllBranches: true }, { $addToSet: { branches: branch._id } }),
+  ]);
+
+  return branch;
+};
 
 /**
  * Update branch details.
