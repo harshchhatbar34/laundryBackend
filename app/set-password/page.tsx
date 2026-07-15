@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2, Download, Smartphone } from 'lucide-react';
 import '../admin/globals.css';
@@ -9,7 +9,7 @@ import '../admin/globals.css';
 const PLAY_STORE_URL = 'https://play.google.com/store'; 
 const APP_STORE_URL = 'https://apps.apple.com';
 
-export default function SetPasswordRouterPage() {
+function SetPasswordRouterContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [device, setDevice] = useState<'ios' | 'android' | 'desktop'>('desktop');
@@ -148,5 +148,17 @@ export default function SetPasswordRouterPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function SetPasswordRouterPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-qwasho-gradient flex items-center justify-center p-4">
+        <Loader2 className="animate-spin text-cyan-400" size={32} />
+      </main>
+    }>
+      <SetPasswordRouterContent />
+    </Suspense>
   );
 }
