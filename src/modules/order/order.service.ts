@@ -627,7 +627,7 @@ export const getHelperOrders = async (
   if (status === 'pending') {
     // Fetch unassigned orders belonging to helper's tenant (pending, accepted, or ready)
     const User = mongoose.model('User');
-    const helperUser = await User.findById(helperId).select('tenantId').lean();
+    const helperUser = (await User.findById(helperId).select('tenantId').lean()) as any;
     query.tenant = helperUser?.tenantId;
     query.helper = null;
     query.status = { $in: ['pending', 'accepted', 'ready'] };

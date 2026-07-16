@@ -191,6 +191,9 @@ export interface IOrder extends Document {
   branch: Types.ObjectId;
   customer: Types.ObjectId;
   helper: Types.ObjectId | null;
+  pickedUpBy?: Types.ObjectId | null;
+  preparedBy?: Types.ObjectId | null;
+  deliveredBy?: Types.ObjectId | null;
   items: IOrderItem[];
   address: Types.ObjectId;
   scheduledPickup: {
