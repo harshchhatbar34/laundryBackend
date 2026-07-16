@@ -215,6 +215,9 @@ export const getOrderById = async (orderId: string, customerId?: Types.ObjectId 
     .populate('address')
     .populate('customer', 'name email mobileNumber')
     .populate('helper', 'name email mobileNumber')
+    .populate('pickedUpBy', 'name email mobileNumber')
+    .populate('preparedBy', 'name email mobileNumber')
+    .populate('deliveredBy', 'name email mobileNumber')
     .populate('branch', 'name city phone')
     .populate('coupon', 'code type value')
     .populate({
@@ -406,19 +409,28 @@ export const helperAcceptOrder = async (
   const order = await Order.findById(orderId);
   if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
 
-  if (!['pending', 'accepted'].includes(order.status)) {
+  if (!['pending', 'accepted', 'ready'].includes(order.status)) {
     throw Object.assign(new Error('This order cannot be accepted at this stage.'), { statusCode: 400 });
   }
 
   order.helper = helperId as Types.ObjectId;
-  order.status = 'accepted';
-  stampStatusTime(order, 'accepted');
-  order.timeline.push({ status: 'accepted', note: 'Accepted by helper', updatedBy: helperId as Types.ObjectId, updatedAt: new Date() });
+  if (order.status === 'pending') {
+    order.status = 'accepted';
+    stampStatusTime(order, 'accepted');
+  }
+  order.timeline.push({
+    status: order.status,
+    note: order.status === 'ready' ? 'Accepted for delivery by helper' : 'Accepted by helper',
+    updatedBy: helperId as Types.ObjectId,
+    updatedAt: new Date()
+  });
   await order.save();
 
   await createNotification(order.customer, {
-    title: '🧺 Helper Assigned',
-    body: `A helper has been assigned to your order ${order.orderNumber}.`,
+    title: order.status === 'ready' ? '🛵 Delivery Partner Assigned' : '🧺 Helper Assigned',
+    body: order.status === 'ready'
+      ? `A helper has been assigned to deliver your order ${order.orderNumber}.`
+      : `A helper has been assigned to your order ${order.orderNumber}.`,
     type: 'order',
     refId: order._id as Types.ObjectId,
   });
@@ -436,7 +448,8 @@ export const helperUpdateOrderStatus = async (
   orderId: string,
   helperId: Types.ObjectId | string,
   status: OrderStatus,
-  note?: string
+  note?: string,
+  userRole?: string
 ) => {
   if (!HELPER_ALLOWED_STATUSES.includes(status)) {
     throw Object.assign(new Error('Invalid status transition'), { statusCode: 400 });
@@ -444,6 +457,11 @@ export const helperUpdateOrderStatus = async (
 
   const order = await Order.findById(orderId);
   if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
+
+  // If calling user is a helper, enforce that they must be the assigned helper for this order
+  if (userRole === 'helper' && order.helper && order.helper.toString() !== helperId.toString()) {
+    throw Object.assign(new Error('Unauthorized: This order is assigned to another helper.'), { statusCode: 403 });
+  }
 
   if (status === 'picked_up') {
     if (order.billUpdated && !order.billConfirmed) {
@@ -455,8 +473,23 @@ export const helperUpdateOrderStatus = async (
   stampStatusTime(order, status);
   order.timeline.push({ status, note: note ?? '', updatedBy: helperId as Types.ObjectId, updatedAt: new Date() });
 
+  if (status === 'picked_up') {
+    order.pickedUpBy = helperId as Types.ObjectId;
+  }
+
+  if (status === 'ready') {
+    order.preparedBy = helperId as Types.ObjectId;
+    // Clear helper when laundry is ready so any helper can pick up for delivery
+    order.helper = null;
+  }
+
   if (status === 'delivered') {
     order.paymentStatus = 'paid';
+    order.deliveredBy = helperId as Types.ObjectId;
+  }
+
+  if (status === 'completed') {
+    order.deliveredBy = helperId as Types.ObjectId;
   }
 
   await order.save();
@@ -589,11 +622,24 @@ export const getHelperOrders = async (
   helperId: Types.ObjectId | string,
   { page = 1, limit = 20, status }: { page?: number; limit?: number; status?: string }
 ) => {
-  const query: Record<string, unknown> = { helper: helperId };
-  const statusQuery = mapStatusFilter(status);
-  if (statusQuery !== undefined) {
-    query.status = statusQuery;
+  const query: Record<string, any> = {};
+
+  if (status === 'pending') {
+    // Fetch unassigned orders belonging to helper's tenant (pending, accepted, or ready)
+    const User = mongoose.model('User');
+    const helperUser = await User.findById(helperId).select('tenantId').lean();
+    query.tenant = helperUser?.tenantId;
+    query.helper = null;
+    query.status = { $in: ['pending', 'accepted', 'ready'] };
+  } else {
+    // Fetch orders assigned to this helper
+    query.helper = helperId;
+    const statusQuery = mapStatusFilter(status);
+    if (statusQuery !== undefined) {
+      query.status = statusQuery;
+    }
   }
+
   const skip = (page - 1) * limit;
 
   const [orders, total] = await Promise.all([
@@ -734,3 +780,92 @@ export const getTenantStats = async (tenantId: string) => {
     activeHelpers,
   };
 };
+
+export const getHelperStats = async (helperId: Types.ObjectId | string) => {
+  const helperObjectId = new mongoose.Types.ObjectId(helperId);
+
+  const stats = await Order.aggregate([
+    { $match: { helper: helperObjectId, status: { $in: ['delivered', 'completed'] } } },
+    {
+      $group: {
+        _id: null,
+        totalOrders: { $sum: 1 },
+        totalRevenue: { $sum: '$pricing.total' },
+        cashCollected: {
+          $sum: {
+            $cond: [
+              { $eq: ['$paymentMethod', 'cash'] },
+              '$pricing.total',
+              0
+            ]
+          }
+        },
+        upiCollected: {
+          $sum: {
+            $cond: [
+              { $eq: ['$paymentMethod', 'upi'] },
+              '$pricing.total',
+              0
+            ]
+          }
+        }
+      }
+    }
+  ]);
+
+  const defaultStats = {
+    totalOrders: 0,
+    totalRevenue: 0,
+    cashCollected: 0,
+    upiCollected: 0,
+  };
+
+  return stats[0] ?? defaultStats;
+};
+
+export const ownerAssignHelperToOrder = async (
+  orderId: string,
+  ownerId: Types.ObjectId | string,
+  helperId: string
+) => {
+  const Tenant = mongoose.model('Tenant');
+  const tenant = await Tenant.findOne({ owner: ownerId });
+  if (!tenant) throw Object.assign(new Error('Tenant not found for owner'), { statusCode: 403 });
+
+  const order = await Order.findOne({ _id: orderId, tenant: tenant._id });
+  if (!order) throw Object.assign(new Error('Order not found'), { statusCode: 404 });
+
+  if (!['pending', 'accepted', 'ready'].includes(order.status)) {
+    throw Object.assign(new Error('This order cannot be assigned at this stage.'), { statusCode: 400 });
+  }
+
+  const User = mongoose.model('User');
+  const helperUser = await User.findOne({ _id: helperId, role: 'helper', tenantId: tenant._id });
+  if (!helperUser) throw Object.assign(new Error('Helper not found or not registered under your shop'), { statusCode: 404 });
+
+  order.helper = helperUser._id as Types.ObjectId;
+  if (order.status === 'pending') {
+    order.status = 'accepted';
+    stampStatusTime(order, 'accepted');
+  }
+  order.timeline.push({
+    status: order.status,
+    note: order.status === 'ready' ? `Assigned to delivery helper: ${helperUser.name}` : `Assigned to helper: ${helperUser.name}`,
+    updatedBy: ownerId as Types.ObjectId,
+    updatedAt: new Date(),
+  });
+  await order.save();
+
+  // Notify customer
+  await createNotification(order.customer, {
+    title: order.status === 'ready' ? '🛵 Delivery Partner Assigned' : '🛵 Helper Assigned',
+    body: order.status === 'ready'
+      ? `Helper ${helperUser.name} has been assigned to deliver your order ${order.orderNumber}.`
+      : `Helper ${helperUser.name} has been assigned to pick up your order ${order.orderNumber}.`,
+    type: 'order',
+    refId: order._id as Types.ObjectId,
+  });
+
+  return order.populate('helper', 'name email mobileNumber');
+};
+

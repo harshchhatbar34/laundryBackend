@@ -38,7 +38,13 @@ export const PATCH = withRole('helper', 'owner')(async (req: NextRequest, ctx: A
 
     if (body.action === 'status') {
       if (!body.status) return sendError(400, 'status is required');
-      const order = await helperUpdateOrderStatus(ctx.params.id, ctx.user._id, body.status as OrderStatus, body.note);
+      const order = await helperUpdateOrderStatus(
+        ctx.params.id,
+        ctx.user._id,
+        body.status as OrderStatus,
+        body.note,
+        ctx.user.role
+      );
       return sendSuccess(200, 'Order status updated', { order });
     }
 

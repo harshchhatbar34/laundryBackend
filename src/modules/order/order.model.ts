@@ -30,6 +30,9 @@ const orderSchema = new Schema<IOrder>(
     branch: { type: Schema.Types.ObjectId, ref: 'Branch', required: true, index: true },
     customer: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     helper: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    pickedUpBy: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    preparedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    deliveredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     items: [orderItemSchema],
     address: { type: Schema.Types.ObjectId, ref: 'Address', required: true },
     scheduledPickup: {

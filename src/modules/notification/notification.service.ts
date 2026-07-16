@@ -1,7 +1,7 @@
 import Notification from './notification.model';
 import User from '../user/user.model';
-import axios from 'axios';
 import type { Types } from 'mongoose';
+import { getFirebaseMessaging } from '../../config/firebase';
 
 interface CreateNotificationInput {
   title: string;
@@ -11,34 +11,46 @@ interface CreateNotificationInput {
 }
 
 /**
- * Sends a real-time push notification via Expo Push Notification API.
+ * Sends a real-time push notification via Firebase Admin SDK (FCM).
+ * Works with both Android standalone APK builds and iOS — no Expo account needed.
  */
-const sendExpoPushNotification = async (
-  pushToken: string,
+const sendFCMPushNotification = async (
+  fcmToken: string,
   title: string,
   body: string,
-  data: any
+  data: Record<string, string>
 ) => {
   try {
-    const payload = {
-      to: pushToken,
-      title,
-      body,
-      sound: 'default',
+    const messaging = getFirebaseMessaging();
+
+    const message: any = {
+      token: fcmToken,
+      notification: {
+        title,
+        body,
+      },
       data,
+      android: {
+        priority: 'high' as const,
+        notification: {
+          sound: 'default',
+          channelId: 'default',
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
     };
 
-    const res = await axios.post('https://exp.host/--/api/v2/push/send', payload, {
-      headers: {
-        'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-    });
-
-    console.log(`[PUSH] Dispatched successfully to token=${pushToken}, status=${res.status}`);
+    const response = await messaging.send(message);
+    console.log(`[FCM] Notification sent successfully. MessageId=${response}`);
   } catch (error: any) {
-    console.error(`[PUSH] Failed to deliver push to token=${pushToken}`, error?.response?.data || error?.message);
+    console.error(`[FCM] Failed to send notification to token=${fcmToken}:`, error?.message ?? error);
   }
 };
 
@@ -46,7 +58,7 @@ export const createNotification = async (
   userId: Types.ObjectId | string,
   data: CreateNotificationInput
 ) => {
-  // 1. Create the database record
+  // 1. Save notification record in MongoDB
   const dbNotification = await Notification.create({
     user: userId,
     title: data.title,
@@ -55,18 +67,21 @@ export const createNotification = async (
     refId: data.refId ?? null,
   });
 
-  // 2. Dispatch real-time mobile push notification asynchronously
+  // 2. Dispatch real-time FCM push notification asynchronously (non-blocking)
   User.findById(userId)
     .select('pushToken')
     .then((user) => {
-      if (user?.pushToken && user.pushToken.startsWith('ExponentPushToken[')) {
-        // Pass refId as orderId in data block for mobile app redirection
-        const pushData = data.refId ? { orderId: String(data.refId) } : {};
-        sendExpoPushNotification(user.pushToken, data.title, data.body, pushData);
+      if (user?.pushToken) {
+        // Build the data payload — all values must be strings for FCM
+        const pushData: Record<string, string> = {};
+        if (data.refId) pushData.orderId = String(data.refId);
+        if (data.type) pushData.type = data.type;
+
+        sendFCMPushNotification(user.pushToken, data.title, data.body, pushData);
       }
     })
     .catch((err) => {
-      console.error(`[PUSH] Error looking up user=${userId} for push notification:`, err);
+      console.error(`[FCM] Error looking up user=${userId} for push notification:`, err);
     });
 
   return dbNotification;

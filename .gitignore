@@ -54,3 +54,5 @@ Thumbs.db
 .agents/
 .claude/
 
+# Firebase service account private key — never commit this!
+src/config/firebase-service-account.json
