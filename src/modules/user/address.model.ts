@@ -10,6 +10,7 @@ const addressSchema = new Schema<IAddress>(
     city: { type: String, required: true, trim: true },
     state: { type: String, required: true, trim: true },
     pincode: { type: String, required: true, trim: true },
+    contactNumber: { type: String, trim: true, default: '' },
     location: {
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], required: true }, // [lng, lat]
