@@ -253,6 +253,10 @@ export interface INotification extends Document {
   type: 'order' | 'system' | 'payment';
   refId: Types.ObjectId | null;
   isRead: boolean;
+  // Push delivery tracking
+  pushStatus: 'sent' | 'failed' | 'skipped' | 'pending';
+  pushError: string | null;
+  pushChannel: 'fcm' | 'expo' | null;
   createdAt: Date;
 }
 
