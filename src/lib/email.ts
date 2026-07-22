@@ -13,6 +13,9 @@ const transporter = nodemailer.createTransport({
     get user() { return getEmailUser(); },
     get pass() { return getEmailPass(); },
   },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 15000,
 });
 
 interface SendEmailOptions {

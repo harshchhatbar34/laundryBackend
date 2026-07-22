@@ -58,13 +58,16 @@ export const registerCustomer = async (body: {
       await existing.save();
 
       logger.info(`[AUTH_REG] ♻️ Updating unverified account & sending OTP → to=${email} name="${name}" otp=${otp}`);
-      sendOtpEmail(email, name, otp).then(sent => {
+      try {
+        const sent = await sendOtpEmail(email, name, otp);
         if (sent) {
           logger.info(`[AUTH_REG] ✅ OTP email delivered successfully → to=${email}`);
         } else {
           logger.warn(`[AUTH_REG] ⚠️ OTP email failed to deliver → to=${email}`);
         }
-      }).catch(err => logger.error(`[AUTH_REG] ❌ OTP email error → to=${email}`, err));
+      } catch (err) {
+        logger.error(`[AUTH_REG] ❌ OTP email error → to=${email}`, err);
+      }
 
       return { userId: String(existing._id), email };
     }
@@ -87,17 +90,16 @@ export const registerCustomer = async (body: {
   });
 
   logger.info(`[AUTH_REG] ✉️ Sending OTP → to=${email} name="${name}" otp=${otp}`);
-  sendOtpEmail(email, name, otp)
-    .then((sent) => {
-      if (sent) {
-        logger.info(`[AUTH_REG] ✅ OTP email delivered successfully → to=${email}`);
-      } else {
-        logger.warn(`[AUTH_REG] ⚠️ OTP email returned false → to=${email}`);
-      }
-    })
-    .catch((err) => {
-      logger.error(`[AUTH_REG] ❌ OTP email FAILED → to=${email}`, err);
-    });
+  try {
+    const sent = await sendOtpEmail(email, name, otp);
+    if (sent) {
+      logger.info(`[AUTH_REG] ✅ OTP email delivered successfully → to=${email}`);
+    } else {
+      logger.warn(`[AUTH_REG] ⚠️ OTP email returned false → to=${email}`);
+    }
+  } catch (err) {
+    logger.error(`[AUTH_REG] ❌ OTP email FAILED → to=${email}`, err);
+  }
 
   return { userId: String(user._id), email };
 };
@@ -138,17 +140,16 @@ export const verifyOtpService = async (userId: string, otp: string) => {
 
   // Send welcome email now that registration is complete
   logger.info(`[AUTH_OTP] ✉️ Sending welcome email → to=${user.email}`);
-  sendWelcomeEmail(user.email, user.name, shopName)
-    .then((sent) => {
-      if (sent) {
-        logger.info(`[AUTH_OTP] ✅ Welcome email delivered successfully → to=${user.email}`);
-      } else {
-        logger.warn(`[AUTH_OTP] ⚠️ Welcome email returned false → to=${user.email}`);
-      }
-    })
-    .catch((err) => {
-      logger.error(`[AUTH_OTP] ❌ Welcome email FAILED → to=${user.email}`, err);
-    });
+  try {
+    const sent = await sendWelcomeEmail(user.email, user.name, shopName);
+    if (sent) {
+      logger.info(`[AUTH_OTP] ✅ Welcome email delivered successfully → to=${user.email}`);
+    } else {
+      logger.warn(`[AUTH_OTP] ⚠️ Welcome email returned false → to=${user.email}`);
+    }
+  } catch (err) {
+    logger.error(`[AUTH_OTP] ❌ Welcome email FAILED → to=${user.email}`, err);
+  }
 
   const token = generateToken(String(user._id), 'customer');
   return { token, user };
@@ -172,17 +173,16 @@ export const resendOtpService = async (userId: string) => {
   await user.save();
 
   logger.info(`[AUTH_OTP] ♻️ Resend OTP → to=${user.email} otp=${otp}`);
-  sendOtpEmail(user.email, user.name, otp)
-    .then((sent) => {
-      if (sent) {
-        logger.info(`[AUTH_OTP] ✅ OTP resent successfully → to=${user.email}`);
-      } else {
-        logger.warn(`[AUTH_OTP] ⚠️ OTP resend failed → to=${user.email}`);
-      }
-    })
-    .catch((err) => {
-      logger.error(`[AUTH_OTP] ❌ OTP resend FAILED → to=${user.email}`, err);
-    });
+  try {
+    const sent = await sendOtpEmail(user.email, user.name, otp);
+    if (sent) {
+      logger.info(`[AUTH_OTP] ✅ OTP resent successfully → to=${user.email}`);
+    } else {
+      logger.warn(`[AUTH_OTP] ⚠️ OTP resend failed → to=${user.email}`);
+    }
+  } catch (err) {
+    logger.error(`[AUTH_OTP] ❌ OTP resend FAILED → to=${user.email}`, err);
+  }
 
   return { message: 'OTP resent successfully.' };
 };
@@ -225,8 +225,12 @@ export const forgotPasswordService = async (email: string) => {
   user.resetPasswordToken = hashedToken;
   user.resetPasswordTokenExpiry = tokenExpiry;
   await user.save();
-  sendPasswordResetEmail(user.email, user.name, rawToken)
-    .catch((err) => console.error(`[FORGOT_PASSWORD] Failed to send email to=${user.email}:`, err));
+  try {
+    await sendPasswordResetEmail(user.email, user.name, rawToken);
+    logger.info(`[FORGOT_PASSWORD] ✅ Password reset email sent → to=${user.email}`);
+  } catch (err) {
+    logger.error(`[FORGOT_PASSWORD] ❌ Failed to send email to=${user.email}:`, err);
+  }
   return { message: 'If the email is registered, you will receive a password reset link.' };
 };
 
