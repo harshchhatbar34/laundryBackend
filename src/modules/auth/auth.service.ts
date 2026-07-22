@@ -5,7 +5,7 @@ import User from '../user/user.model';
 import Tenant from '../tenant/tenant.model';
 import type { UserRole } from '@/types';
 import { sendWelcomeEmail, sendPasswordResetEmail, sendOtpEmail } from '../../lib/email';
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 
 const generateToken = (userId: string, role: UserRole) => {
   const options: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '30d') as SignOptions['expiresIn'] };

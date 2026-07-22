@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { logger } from '../../lib/logger';
+import { logger } from '@/lib/logger';
 
 // Initialize the SMTP transporter
 const transporter = nodemailer.createTransport({
