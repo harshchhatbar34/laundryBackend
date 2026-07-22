@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { logger } from '../../lib/logger';
 
 // Initialize the SMTP transporter
 const transporter = nodemailer.createTransport({
@@ -36,10 +37,10 @@ export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promis
       html,
     });
 
-    console.log(`[EMAIL] Sent successfully: messageId=${info.messageId} to=${to}`);
+    logger.info(`[EMAIL] ✅ Sent successfully: messageId=${info.messageId} to=${to} subject="${subject}"`);
     return true;
   } catch (error) {
-    console.error(`[EMAIL] Failed to send email to=${to}`, error);
+    logger.error(`[EMAIL] ❌ Failed to send email to=${to} subject="${subject}"`, error);
     return false;
   }
 };

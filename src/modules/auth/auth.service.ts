@@ -5,6 +5,7 @@ import User from '../user/user.model';
 import Tenant from '../tenant/tenant.model';
 import type { UserRole } from '@/types';
 import { sendWelcomeEmail, sendPasswordResetEmail, sendOtpEmail } from '../../lib/email';
+import { logger } from '../../lib/logger';
 
 const generateToken = (userId: string, role: UserRole) => {
   const options: SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '30d') as SignOptions['expiresIn'] };
@@ -56,10 +57,14 @@ export const registerCustomer = async (body: {
       existing.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
       await existing.save();
 
-      console.log(`[AUTH_REG] ♻️  Updating unverified account details & sending new OTP → to=${email} | name=${name}`);
+      logger.info(`[AUTH_REG] ♻️ Updating unverified account & sending OTP → to=${email} name="${name}" otp=${otp}`);
       sendOtpEmail(email, name, otp).then(sent => {
-        console.log(`[AUTH_REG] ${sent ? '✅' : '⚠️ '} OTP email ${sent ? 'sent' : 'failed'} → to=${email}`);
-      }).catch(err => console.error(`[AUTH_REG] ❌ OTP email error → ${err?.message}`));
+        if (sent) {
+          logger.info(`[AUTH_REG] ✅ OTP email delivered successfully → to=${email}`);
+        } else {
+          logger.warn(`[AUTH_REG] ⚠️ OTP email failed to deliver → to=${email}`);
+        }
+      }).catch(err => logger.error(`[AUTH_REG] ❌ OTP email error → to=${email}`, err));
 
       return { userId: String(existing._id), email };
     }
@@ -81,13 +86,17 @@ export const registerCustomer = async (body: {
     otpExpiry: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
   });
 
-  console.log(`[AUTH_REG] ✉️  Sending OTP → to=${email} | user=${name} | otp=${otp}`);
+  logger.info(`[AUTH_REG] ✉️ Sending OTP → to=${email} name="${name}" otp=${otp}`);
   sendOtpEmail(email, name, otp)
     .then((sent) => {
-      console.log(`[AUTH_REG] ${sent ? '✅ OTP email sent' : '⚠️  OTP email returned false'} → to=${email}`);
+      if (sent) {
+        logger.info(`[AUTH_REG] ✅ OTP email delivered successfully → to=${email}`);
+      } else {
+        logger.warn(`[AUTH_REG] ⚠️ OTP email returned false → to=${email}`);
+      }
     })
     .catch((err) => {
-      console.error(`[AUTH_REG] ❌ OTP email FAILED → to=${email} | ${err?.message}`);
+      logger.error(`[AUTH_REG] ❌ OTP email FAILED → to=${email}`, err);
     });
 
   return { userId: String(user._id), email };
@@ -125,16 +134,20 @@ export const verifyOtpService = async (userId: string, otp: string) => {
   const tenant = await Tenant.findById(user.tenantId);
   const shopName = tenant?.laundryName || process.env.APP_NAME || 'Qwasho';
 
-  console.log(`[AUTH_OTP] ✅ OTP verified → userId=${userId} email=${user.email}`);
+  logger.info(`[AUTH_OTP] ✅ OTP verified → userId=${userId} email=${user.email}`);
 
   // Send welcome email now that registration is complete
-  console.log(`[AUTH_OTP] ✉️  Sending welcome email → to=${user.email}`);
+  logger.info(`[AUTH_OTP] ✉️ Sending welcome email → to=${user.email}`);
   sendWelcomeEmail(user.email, user.name, shopName)
     .then((sent) => {
-      console.log(`[AUTH_OTP] ${sent ? '✅ Welcome email sent' : '⚠️  Welcome email returned false'} → to=${user.email}`);
+      if (sent) {
+        logger.info(`[AUTH_OTP] ✅ Welcome email delivered successfully → to=${user.email}`);
+      } else {
+        logger.warn(`[AUTH_OTP] ⚠️ Welcome email returned false → to=${user.email}`);
+      }
     })
     .catch((err) => {
-      console.error(`[AUTH_OTP] ❌ Welcome email FAILED → to=${user.email} | ${err?.message}`);
+      logger.error(`[AUTH_OTP] ❌ Welcome email FAILED → to=${user.email}`, err);
     });
 
   const token = generateToken(String(user._id), 'customer');
@@ -158,13 +171,17 @@ export const resendOtpService = async (userId: string) => {
   user.otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  console.log(`[AUTH_OTP] ♻️  Resend OTP → to=${user.email} | otp=${otp}`);
+  logger.info(`[AUTH_OTP] ♻️ Resend OTP → to=${user.email} otp=${otp}`);
   sendOtpEmail(user.email, user.name, otp)
     .then((sent) => {
-      console.log(`[AUTH_OTP] ${sent ? '✅ OTP resent' : '⚠️  OTP resend failed'} → to=${user.email}`);
+      if (sent) {
+        logger.info(`[AUTH_OTP] ✅ OTP resent successfully → to=${user.email}`);
+      } else {
+        logger.warn(`[AUTH_OTP] ⚠️ OTP resend failed → to=${user.email}`);
+      }
     })
     .catch((err) => {
-      console.error(`[AUTH_OTP] ❌ OTP resend FAILED → ${err?.message}`);
+      logger.error(`[AUTH_OTP] ❌ OTP resend FAILED → to=${user.email}`, err);
     });
 
   return { message: 'OTP resent successfully.' };
