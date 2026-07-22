@@ -2,13 +2,16 @@ import nodemailer from 'nodemailer';
 import { logger } from '@/lib/logger';
 
 // Initialize the SMTP transporter
+const getEmailUser = () => (process.env.EMAIL_USER || '').trim();
+const getEmailPass = () => (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.EMAIL_PORT || '465', 10),
   secure: parseInt(process.env.EMAIL_PORT || '465', 10) === 465, // true for 465, false for 587
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    get user() { return getEmailUser(); },
+    get pass() { return getEmailPass(); },
   },
 });
 
