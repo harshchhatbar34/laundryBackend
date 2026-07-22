@@ -4,6 +4,7 @@ import { sendSuccess, sendError } from '@/lib/apiResponse';
 import { withRole } from '@/lib/auth';
 import { getAllOwners, createOwner, toggleOwnerActive } from '@/src/modules/admin/admin.service';
 import { sendOwnerSetupEmail } from '@/src/lib/email';
+import { logger } from '@/lib/logger';
 import type { AuthContext } from '@/types';
 
 // GET /api/superadmin/owners
@@ -55,9 +56,16 @@ export const POST = withRole('superadmin')(async (req: NextRequest, _ctx: AuthCo
     const setupLink = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/set-password?token=${setupToken}`;
     
     // Automatically trigger onboarding password setup email to the owner
-    sendOwnerSetupEmail(owner.email, owner.name, tenant.laundryName, setupLink).catch((err) => {
-      console.error('[EMAIL] Failed to send password setup email:', err);
-    });
+    try {
+      const sent = await sendOwnerSetupEmail(owner.email, owner.name, tenant.laundryName, setupLink);
+      if (sent) {
+        logger.info(`[OWNER_SETUP] ✅ Setup email sent → to=${owner.email}`);
+      } else {
+        logger.warn(`[OWNER_SETUP] ⚠️ Setup email failed → to=${owner.email}`);
+      }
+    } catch (err) {
+      logger.error(`[OWNER_SETUP] ❌ Setup email error → to=${owner.email}`, err);
+    }
 
     return sendSuccess(201, 'Laundry Owner created with tenant code', { owner, tenant, setupLink });
   } catch (err: unknown) {

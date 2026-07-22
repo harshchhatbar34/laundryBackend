@@ -216,7 +216,7 @@ export const forgotPasswordService = async (email: string) => {
   const lowercaseEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: lowercaseEmail });
   if (!user) {
-    console.log(`[FORGOT_PASSWORD] Non-existent email request: email=${lowercaseEmail}`);
+    logger.info(`[FORGOT_PASSWORD] Non-existent email request: email=${lowercaseEmail}`);
     return { message: 'If the email is registered, you will receive a password reset link.' };
   }
   const rawToken = crypto.randomBytes(32).toString('hex');
@@ -254,6 +254,6 @@ export const resetPasswordService = async (rawToken: string, newPassword: string
   user.resetPasswordToken = undefined;
   user.resetPasswordTokenExpiry = undefined;
   await user.save();
-  console.log(`[RESET_PASSWORD] Password reset successful: userId=${user._id}`);
+  logger.info(`[RESET_PASSWORD] Password reset successful: userId=${user._id}`);
   return { message: 'Password reset successfully.' };
 };

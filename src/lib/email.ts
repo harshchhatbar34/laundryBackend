@@ -8,7 +8,7 @@ const getEmailPass = () => (process.env.EMAIL_PASS || '').replace(/\s+/g, '');
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.gmail.com',
   port: parseInt(process.env.EMAIL_PORT || '465', 10),
-  secure: parseInt(process.env.EMAIL_PORT || '465', 10) === 465, // true for 465, false for 587
+  secure: parseInt(process.env.EMAIL_PORT || '465', 10) === 465,
   auth: {
     get user() { return getEmailUser(); },
     get pass() { return getEmailPass(); },
@@ -27,6 +27,8 @@ interface SendEmailOptions {
 const getAppName = (): string => {
   return process.env.APP_NAME || process.env.EMAIL_FROM_NAME || 'Qwasho';
 };
+
+const currentYear = new Date().getFullYear();
 
 /**
  * Sends an HTML email using the configured transporter.
@@ -52,238 +54,276 @@ export const sendEmail = async ({ to, subject, html }: SendEmailOptions): Promis
 };
 
 /**
- * Common CSS Reset & Container layout for 100% cross-client compatibility
- * (Gmail, Outlook, Apple Mail, Yahoo, Mobile clients)
+ * Shared wrapper — white background, 600px centred card, top brand strip, bottom footer.
+ * Inspired by Zerodha / Care Health / professional Indian B2C email style.
  */
-const getBaseStyle = () => `
-  body {
-    margin: 0; padding: 0; width: 100% !important; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;
-    background-color: #f4f7f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color: #333333; line-height: 1.6;
-  }
-  table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
-  img { border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
-  .preheader { display: none !important; visibility: hidden; opacity: 0; color: transparent; height: 0; width: 0; }
-  .container { max-width: 600px; margin: 30px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-  .header { background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); padding: 40px 24px; text-align: center; color: #ffffff; }
-  .header h1 { margin: 12px 0 0 0; font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: #ffffff; }
-  .logo { font-size: 48px; line-height: 1; }
-  .content { padding: 36px 40px; }
-  .content h2 { font-size: 20px; color: #111827; margin-top: 0; font-weight: 700; }
-  .highlight-box { background: #F0F9FF; border-left: 4px solid #0284C7; border-radius: 8px; padding: 16px 20px; margin: 24px 0; font-size: 14px; color: #0369A1; }
-  .otp-box { background: #EFF6FF; border: 2px dashed #2563EB; border-radius: 12px; text-align: center; padding: 24px 16px; margin: 24px 0; }
-  .otp-code { font-size: 42px; font-weight: 800; letter-spacing: 12px; color: #1D4ED8; font-family: monospace; }
-  .otp-label { font-size: 13px; color: #6B7280; margin-top: 8px; }
-  .btn-container { text-align: center; margin: 28px 0; }
-  .btn { display: inline-block; background: #2563EB; color: #ffffff !important; text-decoration: none; padding: 13px 32px; border-radius: 8px; font-weight: 600; font-size: 15px; }
-  .btn-danger { background: #DC2626 !important; }
-  .warning { background-color: #FFFBEB; border-left: 4px solid #F59E0B; padding: 14px 18px; border-radius: 8px; margin: 20px 0; font-size: 14px; color: #92400E; }
-  .info-box { background-color: #F9FAFB; border: 1px solid #E5E7EB; padding: 16px; margin: 20px 0; font-size: 13px; color: #4B5563; border-radius: 8px; }
-  .footer { background-color: #f9fafb; padding: 24px 40px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #f3f4f6; }
-  .signoff { margin-top: 28px; font-size: 15px; color: #111827; }
-  @media only screen and (max-width: 600px) {
-    .content { padding: 24px 20px !important; }
-    .header { padding: 32px 16px !important; }
-    .container { margin: 10px !important; border-radius: 12px !important; }
-    .otp-code { font-size: 34px !important; letter-spacing: 8px !important; }
-  }
-`;
+const wrap = (appName: string, preheader: string, bodyHtml: string): string => `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="x-apple-disable-message-reformatting">
+  <!--[if !mso]><!-->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!--<![endif]-->
+  <style>
+    body, html { margin:0; padding:0; width:100% !important; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%; background:#f0f2f5; }
+    table { border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; }
+    img { border:0; height:auto; line-height:100%; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic; }
+    .preheader { display:none !important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; max-height:0; overflow:hidden; font-size:0px; }
+    @media only screen and (max-width: 620px) {
+      .email-card { width:100% !important; margin:0 !important; border-radius:0 !important; }
+      .email-body { padding:28px 20px !important; }
+      .otp-code { font-size:40px !important; letter-spacing:10px !important; }
+      .brand-header { padding:20px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:Arial,Helvetica,sans-serif;">
+  <span class="preheader">${preheader}</span>
 
-/**
- * 1. Welcome Email — Sent after account is created & verified
- */
-export const sendWelcomeEmail = async (to: string, name: string, laundryName: string): Promise<boolean> => {
-  const appName = getAppName();
+  <!-- Outer wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;padding:40px 0;">
+    <tr>
+      <td align="center" style="padding:0 16px;">
 
-  const supportEmail = process.env.SUPPORT_EMAIL || `support@${appName.toLowerCase()}.com`;
+        <!-- Email card -->
+        <table class="email-card" width="600" cellpadding="0" cellspacing="0" border="0"
+               style="background:#ffffff;border-radius:4px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.10);">
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Welcome to ${laundryName}</title>
-      <style>${getBaseStyle()}</style>
-    </head>
-    <body>
-      <span class="preheader">Your ${appName} account for ${laundryName} is ready to use.</span>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f7f6;">
-        <tr>
-          <td align="center">
-            <div class="container">
-              <div class="header">
-                <div class="logo">🧺</div>
-                <h1>Welcome to ${appName}!</h1>
-              </div>
-              <div class="content">
-                <h2>Hi ${name},</h2>
-                <p>Thank you for choosing <strong>${laundryName}</strong>! Your account has been successfully created and verified.</p>
-                <p>You can now log in to the <strong>${appName}</strong> app on your mobile device to track and manage all your laundry orders.</p>
+          <!-- Brand header strip -->
+          <tr>
+            <td class="brand-header" style="background:#1B2B4B;padding:22px 32px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td>
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:1px;text-transform:uppercase;">${appName}</span>
+                  </td>
+                  <td align="right">
+                    <span style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:0.5px;">OFFICIAL COMMUNICATION</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-                <div class="highlight-box">
-                  📲 Open the <strong>${appName}</strong> app &rarr; tap <strong>Login</strong> &rarr; enter your registered email and password to begin.
-                </div>
+          <!-- Body -->
+          <tr>
+            <td class="email-body" style="padding:36px 40px 28px 40px;">
+              ${bodyHtml}
+            </td>
+          </tr>
 
-                <p><strong>What you can do with ${appName}:</strong></p>
-                <ul style="padding-left: 20px; margin: 16px 0; color: #374151;">
-                  <li style="margin-bottom: 8px;">📦 <strong>Easy Scheduling:</strong> Book laundry pickups in a few taps</li>
-                  <li style="margin-bottom: 8px;">🔔 <strong>Live Tracking:</strong> Real-time status from pickup to clean delivery</li>
-                  <li style="margin-bottom: 8px;">🧾 <strong>Transparent Billing:</strong> View and confirm itemized bills instantly</li>
-                  <li style="margin-bottom: 8px;">⭐ <strong>Ratings & Reviews:</strong> Share feedback for continuous service quality</li>
-                </ul>
+          <!-- Divider -->
+          <tr>
+            <td style="padding:0 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr><td style="border-top:1px solid #e8e8e8;font-size:0;line-height:0;">&nbsp;</td></tr>
+              </table>
+            </td>
+          </tr>
 
-                <p>If you have any questions or need assistance, feel free to contact us at <a href="mailto:${supportEmail}" style="color: #2563EB; text-decoration: none;">${supportEmail}</a>.</p>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 40px 28px 40px;text-align:center;">
+              <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#999999;">
+                This is an automated email. Please do not reply to this message.
+              </p>
+              <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#bbbbbb;">
+                &copy; ${currentYear} ${appName}. All rights reserved.
+              </p>
+            </td>
+          </tr>
 
-                <div class="signoff">
-                  Best regards,<br>
-                  <strong>Team ${appName}</strong>
-                </div>
-              </div>
-              <div class="footer">
-                <p>&copy; 2026 ${appName}. All rights reserved.</p>
-                <p>You received this email because you created an account on ${appName}.</p>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
+        </table>
+        <!-- /Email card -->
 
-  return sendEmail({
-    to,
-    subject: `Welcome to ${laundryName} — Your ${appName} account is ready 🧺`,
-    html,
-  });
-};
+      </td>
+    </tr>
+  </table>
+  <!-- /Outer wrapper -->
+</body>
+</html>`;
 
-/**
- * 2. OTP Email — Sent for email verification during registration
- */
+/* ─────────────────────────────────────────────────────────────────────────────
+   1. OTP Email — Email Verification during Registration / Resend
+───────────────────────────────────────────────────────────────────────────── */
 export const sendOtpEmail = async (to: string, name: string, otp: string): Promise<boolean> => {
   const appName = getAppName();
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Your Verification Code</title>
-      <style>${getBaseStyle()}</style>
-    </head>
-    <body>
-      <span class="preheader">Your ${appName} verification code is ${otp}. Expires in 10 minutes.</span>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f7f6;">
-        <tr>
-          <td align="center">
-            <div class="container" style="max-width: 520px;">
-              <div class="header">
-                <div class="logo">🫧</div>
-                <h1>Verify Your Email</h1>
-              </div>
-              <div class="content">
-                <h2>Hi ${name},</h2>
-                <p>Use the code below to verify your email address and complete your ${appName} registration:</p>
-                <div class="otp-box">
-                  <div class="otp-code">${otp}</div>
-                  <div class="otp-label">This code expires in <strong>10 minutes</strong></div>
-                </div>
-                <div class="warning">
-                  🔒 <strong>Security Tip:</strong> Never share this code with anyone. ${appName} staff will never ask for your OTP.
-                </div>
-                <p>If you did not initiate this registration on ${appName}, please ignore this email.</p>
-                <div class="signoff">
-                  Best regards,<br>
-                  <strong>Team ${appName}</strong>
-                </div>
-              </div>
-              <div class="footer">
-                <p>&copy; 2026 ${appName}. All rights reserved.</p>
-                <p>Security Notification from ${appName} Authentication</p>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
+  const body = `
+    <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
+
+    <p style="margin:16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      Your One-Time Password (OTP) for email verification on <strong>${appName}</strong> is:
+    </p>
+
+    <!-- OTP block -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+      <tr>
+        <td align="center">
+          <p class="otp-code" style="margin:0;font-family:'Courier New',Courier,monospace;font-size:52px;font-weight:900;letter-spacing:14px;color:#1B2B4B;line-height:1.1;">${otp}</p>
+          <p style="margin:10px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#777777;">This OTP is valid for <strong style="color:#333333;">10 minutes</strong>.</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Horizontal rule -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr><td style="border-top:1px solid #eeeeee;font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#e53935;line-height:1.6;">
+      If you did not initiate this request, someone may be trying to access your account. Please ignore this email or contact our support team immediately.
+    </p>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr><td style="border-top:1px solid #eeeeee;font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333333;line-height:1.6;">
+      Regards,<br>
+      <strong>Team ${appName}</strong>
+    </p>
   `;
 
   return sendEmail({
     to,
     subject: `${otp} is your ${appName} verification code`,
-    html,
+    html: wrap(appName, `Your ${appName} OTP is ${otp}. Valid for 10 minutes.`, body),
   });
 };
 
-/**
- * 3. Password Reset Email — Sent when user requests a reset
- */
-export const sendPasswordResetEmail = async (to: string, name: string, token: string): Promise<boolean> => {
+/* ─────────────────────────────────────────────────────────────────────────────
+   2. Welcome Email — Sent after OTP is verified & account is activated
+───────────────────────────────────────────────────────────────────────────── */
+export const sendWelcomeEmail = async (to: string, name: string, laundryName: string): Promise<boolean> => {
   const appName = getAppName();
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
+  const supportEmail = process.env.SUPPORT_EMAIL || `support@${appName.toLowerCase()}.com`;
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Reset Your Password</title>
-      <style>${getBaseStyle()}</style>
-    </head>
-    <body>
-      <span class="preheader">Password reset link for your ${appName} account. Valid for 15 minutes.</span>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f7f6;">
-        <tr>
-          <td align="center">
-            <div class="container">
-              <div class="header">
-                <div class="logo">🔑</div>
-                <h1>Password Reset Request</h1>
-              </div>
-              <div class="content">
-                <h2>Hi ${name},</h2>
-                <p>We received a request to reset the password for your ${appName} account. Click the button below to set a new password:</p>
-                <div class="btn-container">
-                  <a href="${resetUrl}" class="btn btn-danger">Reset Password</a>
-                </div>
-                <div class="warning">
-                  ⏱️ <strong>Important:</strong> This link will expire in <strong>15 minutes</strong>. If you did not request a password reset, please ignore this email or contact support.
-                </div>
-                <div class="signoff">
-                  Best regards,<br>
-                  <strong>Team ${appName}</strong>
-                </div>
-              </div>
-              <div class="footer">
-                <p>&copy; 2026 ${appName}. All rights reserved.</p>
-                <p>Account Security Email from ${appName}</p>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
+  const body = `
+    <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
+
+    <p style="margin:16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      Welcome to <strong>${appName}</strong>! Your account has been successfully verified and activated with <strong>${laundryName}</strong>.
+    </p>
+
+    <p style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      You can now log in to the <strong>${appName}</strong> app to schedule laundry pickups, track your orders in real-time, and manage your account.
+    </p>
+
+    <!-- Horizontal rule -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr><td style="border-top:1px solid #eeeeee;font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    <!-- Feature list -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;">
+          &rsaquo;&nbsp; <strong>Easy Scheduling</strong> &mdash; Book laundry pickups in a few taps
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;">
+          &rsaquo;&nbsp; <strong>Live Tracking</strong> &mdash; Real-time order status from pickup to delivery
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;">
+          &rsaquo;&nbsp; <strong>Transparent Billing</strong> &mdash; View and confirm itemised bills instantly
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:6px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#444444;">
+          &rsaquo;&nbsp; <strong>Ratings &amp; Reviews</strong> &mdash; Share feedback for continuous quality improvement
+        </td>
+      </tr>
+    </table>
+
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr><td style="border-top:1px solid #eeeeee;font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#777777;line-height:1.6;">
+      For assistance, please write to us at <a href="mailto:${supportEmail}" style="color:#1B2B4B;text-decoration:none;">${supportEmail}</a>.
+    </p>
+
+    <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333333;line-height:1.6;">
+      Regards,<br>
+      <strong>Team ${appName}</strong>
+    </p>
   `;
 
   return sendEmail({
     to,
-    subject: `Reset your ${appName} Password 🔑`,
-    html,
+    subject: `Welcome to ${appName} — Your account is ready`,
+    html: wrap(appName, `Your ${appName} account for ${laundryName} is verified and ready to use.`, body),
   });
 };
 
-/**
- * 4. Owner Setup Email — Sent when a new shop owner is created
- */
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. Password Reset Email — Sent when user requests a password reset
+───────────────────────────────────────────────────────────────────────────── */
+export const sendPasswordResetEmail = async (to: string, name: string, token: string): Promise<boolean> => {
+  const appName = getAppName();
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
+
+  const body = `
+    <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
+
+    <p style="margin:16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      We received a request to reset the password for your <strong>${appName}</strong> account associated with this email address.
+    </p>
+
+    <p style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      Click the button below to set a new password. This link is valid for <strong>15 minutes</strong>.
+    </p>
+
+    <!-- Reset button -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
+      <tr>
+        <td align="center">
+          <a href="${resetUrl}" target="_blank"
+             style="display:inline-block;background:#1B2B4B;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;padding:14px 40px;border-radius:3px;letter-spacing:0.5px;">
+            Reset Password
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Fallback URL -->
+    <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#999999;">
+      If the button does not work, copy and paste the link below into your browser:
+    </p>
+    <p style="margin:0 0 20px 0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#1B2B4B;word-break:break-all;">${resetUrl}</p>
+
+    <!-- Horizontal rule -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr><td style="border-top:1px solid #eeeeee;font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#e53935;line-height:1.6;">
+      If you did not request a password reset, please ignore this email. Your password will remain unchanged.
+    </p>
+
+    <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333333;line-height:1.6;">
+      Regards,<br>
+      <strong>Team ${appName}</strong>
+    </p>
+  `;
+
+  return sendEmail({
+    to,
+    subject: `Password Reset Request — ${appName}`,
+    html: wrap(appName, `Reset link for your ${appName} account. Valid for 15 minutes.`, body),
+  });
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4. Owner Setup Email — Sent when a new shop owner account is created by admin
+───────────────────────────────────────────────────────────────────────────── */
 export const sendOwnerSetupEmail = async (
   to: string,
   name: string,
@@ -292,63 +332,58 @@ export const sendOwnerSetupEmail = async (
 ): Promise<boolean> => {
   const appName = getAppName();
 
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Configure Your Owner Account</title>
-      <style>${getBaseStyle()}</style>
-    </head>
-    <body>
-      <span class="preheader">Set up your shop owner password for ${laundryName} on ${appName}.</span>
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f4f7f6;">
-        <tr>
-          <td align="center">
-            <div class="container">
-              <div class="header" style="background: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);">
-                <div class="logo">🧺</div>
-                <h1>Welcome to ${appName} Platform</h1>
-              </div>
-              <div class="content">
-                <h2>Hi ${name},</h2>
-                <p>Your shop owner account for <strong>${laundryName}</strong> has been successfully registered on ${appName}.</p>
-                <p>Please click the button below to configure your password and activate your shop account:</p>
-                
-                <div class="btn-container">
-                  <a href="${setupLink}" class="btn" style="background: #0891B2;">Set Up Password</a>
-                </div>
+  const body = `
+    <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
 
-                <div class="info-box">
-                  📌 <strong>Note:</strong> This setup link will open a web page to set your password. Once set, you can sign in directly to the mobile app.
-                  <br/><br/>
-                  If the button doesn't work, copy and paste this link into your browser:
-                  <br/>
-                  <span style="font-family: monospace; word-break: break-all; color: #0891B2;">${setupLink}</span>
-                </div>
+    <p style="margin:16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      Your shop owner account for <strong>${laundryName}</strong> has been created on the <strong>${appName}</strong> platform.
+    </p>
 
-                <div class="signoff">
-                  Best regards,<br>
-                  <strong>Team ${appName}</strong>
-                </div>
-              </div>
-              <div class="footer">
-                <p>&copy; 2026 ${appName}. All rights reserved.</p>
-                <p>Owner Activation Email from ${appName}</p>
-              </div>
-            </div>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
+    <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
+      Please click the button below to set your password and activate your account:
+    </p>
+
+    <!-- Setup button -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
+      <tr>
+        <td align="center">
+          <a href="${setupLink}" target="_blank"
+             style="display:inline-block;background:#1B2B4B;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;padding:14px 40px;border-radius:3px;letter-spacing:0.5px;">
+            Set Up My Account
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Fallback URL -->
+    <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#999999;">
+      If the button does not work, copy and paste the link below into your browser:
+    </p>
+    <p style="margin:0 0 20px 0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#1B2B4B;word-break:break-all;">${setupLink}</p>
+
+    <!-- Note -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr>
+        <td style="background:#f8f8f8;border-left:3px solid #1B2B4B;padding:12px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#555555;line-height:1.6;">
+          <strong>Note:</strong> This setup link opens a web page where you can configure your password. Once set, you can sign in directly via the ${appName} mobile app.
+        </td>
+      </tr>
+    </table>
+
+    <!-- Horizontal rule -->
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr><td style="border-top:1px solid #eeeeee;font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#333333;line-height:1.6;">
+      Regards,<br>
+      <strong>Team ${appName}</strong>
+    </p>
   `;
 
   return sendEmail({
     to,
-    subject: `Configure Your ${appName} Owner Account 🧺`,
-    html,
+    subject: `Set Up Your ${appName} Owner Account — ${laundryName}`,
+    html: wrap(appName, `Set up your ${laundryName} owner account on ${appName}.`, body),
   });
 };
