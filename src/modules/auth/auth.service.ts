@@ -44,15 +44,23 @@ export const registerCustomer = async (body: {
   const existing = await User.findOne({ email });
   if (existing) {
     if (!existing.isEmailVerified) {
-      // Already registered but not verified — resend OTP
+      // User registered previously but hasn't verified OTP yet — update all fields with latest data
+      const hashedPassword = await bcrypt.hash(password, 10);
       const otp = generateOtp();
+
+      existing.name = name;
+      existing.password = hashedPassword;
+      existing.mobileNumber = mobileNumber || null;
+      existing.tenantId = tenant._id;
       existing.otpCode = hashOtp(otp);
       existing.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
       await existing.save();
-      console.log(`[AUTH_REG] ♻️  Resending OTP for unverified account → to=${email}`);
-      sendOtpEmail(email, existing.name, otp).then(sent => {
-        console.log(`[AUTH_REG] ${sent ? '✅' : '⚠️ '} OTP resend ${sent ? 'sent' : 'failed'} → to=${email}`);
-      }).catch(err => console.error(`[AUTH_REG] ❌ OTP resend error → ${err?.message}`));
+
+      console.log(`[AUTH_REG] ♻️  Updating unverified account details & sending new OTP → to=${email} | name=${name}`);
+      sendOtpEmail(email, name, otp).then(sent => {
+        console.log(`[AUTH_REG] ${sent ? '✅' : '⚠️ '} OTP email ${sent ? 'sent' : 'failed'} → to=${email}`);
+      }).catch(err => console.error(`[AUTH_REG] ❌ OTP email error → ${err?.message}`));
+
       return { userId: String(existing._id), email };
     }
     throw Object.assign(new Error('Email is already in use.'), { statusCode: 409 });
