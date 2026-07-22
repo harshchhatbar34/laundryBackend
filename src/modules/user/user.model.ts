@@ -30,6 +30,9 @@ const userSchema = new Schema<IUser>(
     pushToken: { type: String, default: null },
     resetPasswordToken: { type: String, default: null },
     resetPasswordTokenExpiry: { type: Date, default: null },
+    otpCode: { type: String, default: null },
+    otpExpiry: { type: Date, default: null },
+    isEmailVerified: { type: Boolean, default: false },
   },
   {
 
@@ -39,6 +42,8 @@ const userSchema = new Schema<IUser>(
         delete ret.password;
         delete ret.resetPasswordToken;
         delete ret.resetPasswordTokenExpiry;
+        delete ret.otpCode;
+        delete ret.otpExpiry;
         delete ret.__v;
         return ret;
       },

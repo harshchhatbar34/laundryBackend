@@ -56,6 +56,9 @@ export interface IUser extends Document {
   upiId?: string;
   resetPasswordToken?: string;
   resetPasswordTokenExpiry?: Date;
+  otpCode?: string;           // SHA-256 hashed OTP
+  otpExpiry?: Date;           // OTP expiry time
+  isEmailVerified: boolean;   // true once OTP is verified
   createdAt: Date;
   updatedAt: Date;
 }
