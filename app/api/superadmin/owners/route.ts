@@ -53,7 +53,7 @@ export const POST = withRole('superadmin')(async (req: NextRequest, _ctx: AuthCo
       return sendError(400, 'paymentMode must be either "cash" or "upi"');
     }
     const { owner, tenant, setupToken } = await createOwner(body);
-    const setupLink = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/set-password?token=${setupToken}`;
+    const setupLink = `${process.env.FRONTEND_URL || 'https://laundry-backend-five.vercel.app'}/set-password?token=${setupToken}`;
     
     // Automatically trigger onboarding password setup email to the owner
     try {

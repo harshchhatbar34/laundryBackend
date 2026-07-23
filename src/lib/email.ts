@@ -268,7 +268,7 @@ export const sendWelcomeEmail = async (to: string, name: string, laundryName: st
 ───────────────────────────────────────────────────────────────────────────── */
 export const sendPasswordResetEmail = async (to: string, name: string, token: string): Promise<boolean> => {
   const appName = getAppName();
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${token}`;
+  const resetUrl = `${process.env.FRONTEND_URL || 'https://laundry-backend-five.vercel.app'}/reset-password?token=${token}`;
 
   const body = `
     <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
