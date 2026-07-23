@@ -2,10 +2,9 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, Download, Smartphone } from 'lucide-react';
+import { Loader2, Download, Smartphone, CheckCircle2, Lock } from 'lucide-react';
 import '../admin/globals.css';
 
-// Configure store URLs (user can adjust these later)
 const PLAY_STORE_URL = 'https://play.google.com/store';
 const APP_STORE_URL = 'https://apps.apple.com';
 
@@ -14,6 +13,11 @@ function ResetPasswordRouterContent() {
   const token = searchParams.get('token');
   const [device, setDevice] = useState<'ios' | 'android' | 'desktop'>('desktop');
   const [status, setStatus] = useState<'checking' | 'redirecting' | 'fallback'>('checking');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [webLoading, setWebLoading] = useState(false);
+  const [webError, setWebError] = useState('');
+  const [webSuccess, setWebSuccess] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -29,40 +33,66 @@ function ResetPasswordRouterContent() {
     }
 
     setDevice(currentDevice);
-    setStatus('redirecting');
 
-    // Attempt to deep link into the mobile app's SetPassword screen
-    const deepLink = `laundroflow://set-password?token=${token}`;
-    const storeLink = currentDevice === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
+    if (currentDevice !== 'desktop') {
+      setStatus('redirecting');
+      // Attempt to deep link into the mobile app's SetPassword screen
+      const deepLink = `laundroflow://set-password?token=${token}`;
+      window.location.href = deepLink;
 
-    if (currentDevice === 'desktop') {
+      const timeout = setTimeout(() => {
+        const isPageHidden = document.hidden || (document as any).webkitHidden;
+        if (!isPageHidden) {
+          setStatus('fallback');
+        }
+      }, 2500);
+
+      return () => clearTimeout(timeout);
+    } else {
       setStatus('fallback');
-      return;
     }
-
-    // Try to open the app
-    window.location.href = deepLink;
-
-    // Set a timeout to redirect to the app store if the app doesn't open
-    const timeout = setTimeout(() => {
-      const isPageHidden = document.hidden || (document as any).webkitHidden;
-      if (!isPageHidden) {
-        window.location.href = storeLink;
-        setStatus('fallback');
-      }
-    }, 2500);
-
-    return () => clearTimeout(timeout);
   }, [token]);
-
-  const handleManualStoreRedirect = () => {
-    const storeLink = device === 'ios' ? APP_STORE_URL : PLAY_STORE_URL;
-    window.location.href = storeLink;
-  };
 
   const handleManualAppRetry = () => {
     if (token) {
       window.location.href = `laundroflow://set-password?token=${token}`;
+    }
+  };
+
+  const handleWebReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWebError('');
+
+    if (!password) {
+      setWebError('Password is required.');
+      return;
+    }
+    if (password.length < 8) {
+      setWebError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setWebError('Passwords do not match.');
+      return;
+    }
+
+    setWebLoading(true);
+    try {
+      const res = await fetch('/api/auth/set-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWebSuccess(true);
+      } else {
+        setWebError(data.message || 'Failed to reset password. Link may be expired.');
+      }
+    } catch (err: any) {
+      setWebError(err?.message || 'An unexpected error occurred.');
+    } finally {
+      setWebLoading(false);
     }
   };
 
@@ -75,7 +105,7 @@ function ResetPasswordRouterContent() {
           </div>
           <div>
             <h2 className="font-display font-bold text-lg text-white">Invalid Link</h2>
-            <p className="text-xs text-slate-400 mt-1">This reset link is invalid or incomplete. Please request a new link.</p>
+            <p className="text-xs text-slate-400 mt-1">This reset link is invalid or incomplete. Please request a new link from the app.</p>
           </div>
         </div>
       </main>
@@ -86,63 +116,98 @@ function ResetPasswordRouterContent() {
     <main className="min-h-screen bg-qwasho-gradient flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="admin-card max-w-md w-full p-8 shadow-2xl bg-dark-50/80 backdrop-blur-md border border-white/5 text-center space-y-6">
-        <div>
+      <div className="admin-card max-w-md w-full p-8 shadow-2xl bg-dark-50/80 backdrop-blur-md border border-white/5 space-y-6">
+        <div className="text-center">
           <div className="text-center text-5xl">🫧</div>
           <h2 className="font-display font-bold text-xl text-white mt-4">Qwasho Platform</h2>
           <p className="text-xs text-slate-400 mt-1">Smart Laundry Management</p>
         </div>
 
         {status === 'redirecting' ? (
-          <div className="space-y-4 py-6">
+          <div className="space-y-4 py-6 text-center">
             <Loader2 className="animate-spin text-cyan-400 mx-auto" size={36} />
             <div>
               <p className="text-sm font-semibold text-white">Opening LaundroFlow App...</p>
-              <p className="text-xs text-slate-400 mt-1.5">We are redirecting you to configure your password.</p>
+              <p className="text-xs text-slate-400 mt-1.5">Redirecting to set your new password inside the app.</p>
             </div>
+            <button
+              onClick={handleManualAppRetry}
+              className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mt-4"
+            >
+              <Smartphone size={16} /> Open App Now
+            </button>
+          </div>
+        ) : webSuccess ? (
+          <div className="space-y-4 py-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto text-emerald-400">
+              <CheckCircle2 size={36} />
+            </div>
+            <h3 className="text-base font-bold text-white">Password Reset Successful!</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Your password has been updated. You can now open the <strong>LaundroFlow</strong> app and log in with your new password.
+            </p>
+            <button
+              onClick={handleManualAppRetry}
+              className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mt-4"
+            >
+              <Smartphone size={16} /> Open App & Log In
+            </button>
           </div>
         ) : (
-          <div className="space-y-6 py-2">
-            <div className="w-16 h-16 rounded-full bg-cyan-500/10 flex items-center justify-center mx-auto text-cyan-400">
-              <Smartphone size={32} />
-            </div>
-
-            {device === 'desktop' ? (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-white">Mobile Device Required</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Please open this password reset link on your **Android or iOS smartphone** to change your password inside the <strong>LaundroFlow</strong> app.
-                </p>
-                <div className="pt-2">
-                  <span className="text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-slate-300 select-all font-mono break-all block">
-                    {window.location.href}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-white">App Not Installed?</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  If the LaundroFlow app didn't open automatically, please download it from the store first.
-                </p>
-
-                <div className="flex flex-col gap-3 pt-2">
-                  <button
-                    onClick={handleManualStoreRedirect}
-                    className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
-                  >
-                    <Download size={14} /> Download App
-                  </button>
-
-                  <button
-                    onClick={handleManualAppRetry}
-                    className="w-full justify-center py-2.5 text-xs font-semibold text-slate-300 hover:text-white border border-white/10 hover:bg-white/5 rounded-lg transition-all"
-                  >
-                    Retry Opening App
-                  </button>
-                </div>
-              </div>
+          <div className="space-y-5">
+            {device !== 'desktop' && (
+              <button
+                onClick={handleManualAppRetry}
+                className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mb-2"
+              >
+                <Smartphone size={16} /> Open in LaundroFlow App
+              </button>
             )}
+
+            <div className="border-t border-white/10 pt-4">
+              <div className="flex items-center gap-2 text-white font-semibold text-sm mb-3">
+                <Lock size={16} className="text-cyan-400" />
+                <span>Reset Password</span>
+              </div>
+
+              {webError ? (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 mb-3">
+                  {webError}
+                </div>
+              ) : null}
+
+              <form onSubmit={handleWebReset} className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">New Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 8 characters"
+                    className="w-full px-3 py-2 bg-dark-100 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter new password"
+                    className="w-full px-3 py-2 bg-dark-100 border border-white/10 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={webLoading}
+                  className="w-full bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center gap-2 mt-4"
+                >
+                  {webLoading ? <Loader2 className="animate-spin" size={14} /> : 'Save New Password'}
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>

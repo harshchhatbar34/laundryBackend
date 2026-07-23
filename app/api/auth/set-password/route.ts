@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/db';
 import { sendSuccess, sendError } from '@/lib/apiResponse';
 import User from '@/src/modules/user/user.model';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 // POST /api/auth/set-password
 export async function POST(req: NextRequest) {
@@ -19,8 +20,13 @@ export async function POST(req: NextRequest) {
       return sendError(400, 'Password must be at least 8 characters long');
     }
 
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
     const user = await User.findOne({
-      resetPasswordToken: token,
+      $or: [
+        { resetPasswordToken: token },
+        { resetPasswordToken: hashedToken }
+      ],
       resetPasswordTokenExpiry: { $gt: new Date() },
     });
 
