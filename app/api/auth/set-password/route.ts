@@ -16,31 +16,13 @@ export async function POST(req: NextRequest) {
       return sendError(400, 'Token and password are required');
     }
 
-    if (password.length < 8) {
-      return sendError(400, 'Password must be at least 8 characters long');
+    if (password.length < 6) {
+      return sendError(400, 'Password must be at least 6 characters long');
     }
 
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-
-    const user = await User.findOne({
-      $or: [
-        { resetPasswordToken: token },
-        { resetPasswordToken: hashedToken }
-      ],
-      resetPasswordTokenExpiry: { $gt: new Date() },
-    });
-
-    if (!user) {
-      return sendError(400, 'Invalid or expired setup token');
-    }
-
-    // Set new password
-    user.password = await bcrypt.hash(password, 10);
-    user.resetPasswordToken = null;
-    user.resetPasswordTokenExpiry = null;
-    await user.save();
-
-    return sendSuccess(200, 'Password set successfully');
+    const { resetPasswordService } = await import('@/src/modules/auth/auth.service');
+    const result = await resetPasswordService(token, password);
+    return sendSuccess(200, result.message);
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };
     return sendError(e.statusCode ?? 500, e.message ?? 'Internal Server Error');

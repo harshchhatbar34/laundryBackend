@@ -222,7 +222,7 @@ export const forgotPasswordService = async (email: string) => {
 
   const rawToken = crypto.randomBytes(32).toString('hex');
   const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-  const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
+  const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour validity
   user.resetPasswordToken = hashedToken;
   user.resetPasswordTokenExpiry = tokenExpiry;
   await user.save();
@@ -241,22 +241,30 @@ export const forgotPasswordService = async (email: string) => {
  * Reset password.
  */
 export const resetPasswordService = async (rawToken: string, newPassword: string) => {
-  if (!rawToken) {
+  if (!rawToken || !rawToken.trim()) {
     throw Object.assign(new Error('Token is required.'), { statusCode: 400 });
   }
-  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const cleanToken = rawToken.trim();
+  const hashedToken = crypto.createHash('sha256').update(cleanToken).digest('hex');
+
   const user = await User.findOne({
-    resetPasswordToken: hashedToken,
+    $or: [
+      { resetPasswordToken: cleanToken },
+      { resetPasswordToken: hashedToken }
+    ],
     resetPasswordTokenExpiry: { $gt: new Date() },
   });
+
   if (!user) {
-    throw Object.assign(new Error('Invalid or expired password reset token.'), { statusCode: 400 });
+    throw Object.assign(new Error('Invalid or expired password reset link. Please request a new link.'), { statusCode: 400 });
   }
+
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashedPassword;
   user.resetPasswordToken = undefined;
   user.resetPasswordTokenExpiry = undefined;
   await user.save();
+
   logger.info(`[RESET_PASSWORD] Password reset successful: userId=${user._id}`);
   return { message: 'Password reset successfully.' };
 };
