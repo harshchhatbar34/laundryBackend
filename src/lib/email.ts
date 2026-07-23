@@ -263,12 +263,20 @@ export const sendWelcomeEmail = async (to: string, name: string, laundryName: st
   });
 };
 
+const getFrontendUrl = (): string => {
+  const url = (process.env.FRONTEND_URL || '').trim();
+  if (url && !url.includes('five.vercel.app') && !url.includes('localhost')) {
+    return url.endsWith('/') ? url.slice(0, -1) : url;
+  }
+  return 'https://laundry-backend-eta.vercel.app';
+};
+
 /* ─────────────────────────────────────────────────────────────────────────────
    3. Password Reset Email — Sent when user requests a password reset
 ───────────────────────────────────────────────────────────────────────────── */
 export const sendPasswordResetEmail = async (to: string, name: string, token: string): Promise<boolean> => {
   const appName = getAppName();
-  const resetUrl = `${process.env.FRONTEND_URL || 'https://laundry-backend-eta.vercel.app'}/reset-password?token=${token}`;
+  const resetUrl = `${getFrontendUrl()}/reset-password?token=${token}`;
 
   const body = `
     <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
