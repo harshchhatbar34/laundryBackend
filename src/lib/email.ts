@@ -278,7 +278,7 @@ export const sendPasswordResetEmail = async (to: string, name: string, token: st
     </p>
 
     <p style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
-      Click the button below to set a new password. This link is valid for <strong>15 minutes</strong>.
+      Click the button below to set a new password. This link is valid for <strong>10 minutes</strong>.
     </p>
 
     <!-- Reset button -->
@@ -317,7 +317,7 @@ export const sendPasswordResetEmail = async (to: string, name: string, token: st
   return sendEmail({
     to,
     subject: `Password Reset Request — ${appName}`,
-    html: wrap(appName, `Reset link for your ${appName} account. Valid for 15 minutes.`, body),
+    html: wrap(appName, `Reset link for your ${appName} account. Valid for 10 minutes.`, body),
   });
 };
 

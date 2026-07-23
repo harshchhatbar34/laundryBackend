@@ -222,7 +222,7 @@ export const forgotPasswordService = async (email: string) => {
 
   const rawToken = crypto.randomBytes(32).toString('hex');
   const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
-  const tokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour validity
+  const tokenExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes validity
   user.resetPasswordToken = hashedToken;
   user.resetPasswordTokenExpiry = tokenExpiry;
   await user.save();
