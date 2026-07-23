@@ -216,22 +216,25 @@ export const forgotPasswordService = async (email: string) => {
   const lowercaseEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: lowercaseEmail });
   if (!user) {
-    logger.info(`[FORGOT_PASSWORD] Non-existent email request: email=${lowercaseEmail}`);
-    return { message: 'If the email is registered, you will receive a password reset link.' };
+    logger.warn(`[FORGOT_PASSWORD] Non-existent email request: email=${lowercaseEmail}`);
+    throw Object.assign(new Error('This email address is not registered.'), { statusCode: 404 });
   }
+
   const rawToken = crypto.randomBytes(32).toString('hex');
   const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
   const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000);
   user.resetPasswordToken = hashedToken;
   user.resetPasswordTokenExpiry = tokenExpiry;
   await user.save();
+
   try {
     await sendPasswordResetEmail(user.email, user.name, rawToken);
     logger.info(`[FORGOT_PASSWORD] ✅ Password reset email sent → to=${user.email}`);
   } catch (err) {
     logger.error(`[FORGOT_PASSWORD] ❌ Failed to send email to=${user.email}:`, err);
   }
-  return { message: 'If the email is registered, you will receive a password reset link.' };
+
+  return { message: 'Password reset link has been sent to your email address.' };
 };
 
 /**
