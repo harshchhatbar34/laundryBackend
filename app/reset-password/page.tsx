@@ -2,11 +2,8 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Loader2, Download, Smartphone, CheckCircle2, Lock } from 'lucide-react';
+import { Loader2, Smartphone, CheckCircle2, Lock } from 'lucide-react';
 import '../admin/globals.css';
-
-const PLAY_STORE_URL = 'https://play.google.com/store';
-const APP_STORE_URL = 'https://apps.apple.com';
 
 function ResetPasswordRouterContent() {
   const searchParams = useSearchParams();
@@ -18,6 +15,13 @@ function ResetPasswordRouterContent() {
   const [webLoading, setWebLoading] = useState(false);
   const [webError, setWebError] = useState('');
   const [webSuccess, setWebSuccess] = useState(false);
+
+  const getAppDeepLink = (dev: 'ios' | 'android' | 'desktop', t: string) => {
+    if (dev === 'android') {
+      return `intent://set-password?token=${t}#Intent;scheme=laundroflow;package=com.laundroflow.app;end;`;
+    }
+    return `laundroflow://set-password?token=${t}`;
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -36,9 +40,10 @@ function ResetPasswordRouterContent() {
 
     if (currentDevice !== 'desktop') {
       setStatus('redirecting');
-      // Attempt to deep link into the mobile app's SetPassword screen
-      const deepLink = `laundroflow://set-password?token=${token}`;
-      window.location.href = deepLink;
+      const targetUrl = getAppDeepLink(currentDevice, token);
+      
+      // Attempt auto-launch app
+      window.location.href = targetUrl;
 
       const timeout = setTimeout(() => {
         const isPageHidden = document.hidden || (document as any).webkitHidden;
@@ -52,12 +57,6 @@ function ResetPasswordRouterContent() {
       setStatus('fallback');
     }
   }, [token]);
-
-  const handleManualAppRetry = () => {
-    if (token) {
-      window.location.href = `laundroflow://set-password?token=${token}`;
-    }
-  };
 
   const handleWebReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,6 +111,8 @@ function ResetPasswordRouterContent() {
     );
   }
 
+  const appLink = token ? getAppDeepLink(device, token) : '#';
+
   return (
     <main className="min-h-screen bg-qwasho-gradient flex items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute -top-10 -left-10 w-40 h-40 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -130,12 +131,12 @@ function ResetPasswordRouterContent() {
               <p className="text-sm font-semibold text-white">Opening LaundroFlow App...</p>
               <p className="text-xs text-slate-400 mt-1.5">Redirecting to set your new password inside the app.</p>
             </div>
-            <button
-              onClick={handleManualAppRetry}
-              className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mt-4"
+            <a
+              href={appLink}
+              className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mt-4 text-white text-center"
             >
               <Smartphone size={16} /> Open App Now
-            </button>
+            </a>
           </div>
         ) : webSuccess ? (
           <div className="space-y-4 py-4 text-center">
@@ -146,22 +147,22 @@ function ResetPasswordRouterContent() {
             <p className="text-xs text-slate-400 leading-relaxed">
               Your password has been updated. You can now open the <strong>LaundroFlow</strong> app and log in with your new password.
             </p>
-            <button
-              onClick={handleManualAppRetry}
-              className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mt-4"
+            <a
+              href={appLink}
+              className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mt-4 text-white text-center"
             >
               <Smartphone size={16} /> Open App & Log In
-            </button>
+            </a>
           </div>
         ) : (
           <div className="space-y-5">
             {device !== 'desktop' && (
-              <button
-                onClick={handleManualAppRetry}
-                className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mb-2"
+              <a
+                href={appLink}
+                className="qwasho-btn-primary w-full justify-center py-2.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 mb-2 text-white text-center"
               >
                 <Smartphone size={16} /> Open in LaundroFlow App
-              </button>
+              </a>
             )}
 
             <div className="border-t border-white/10 pt-4">
