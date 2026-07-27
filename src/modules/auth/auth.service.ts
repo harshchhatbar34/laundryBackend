@@ -244,6 +244,9 @@ export const resetPasswordService = async (rawToken: string, newPassword: string
   if (!rawToken || !rawToken.trim()) {
     throw Object.assign(new Error('Token is required.'), { statusCode: 400 });
   }
+  if (!newPassword || newPassword.length < 8) {
+    throw Object.assign(new Error('Password must be at least 8 characters long.'), { statusCode: 400 });
+  }
   const cleanToken = rawToken.trim();
   const hashedToken = crypto.createHash('sha256').update(cleanToken).digest('hex');
 

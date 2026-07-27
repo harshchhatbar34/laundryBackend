@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
       return sendError(400, 'Token and password are required');
     }
 
-    if (password.length < 6) {
-      return sendError(400, 'Password must be at least 6 characters long');
+    if (password.length < 8) {
+      return sendError(400, 'Password must be at least 8 characters long');
     }
 
     const { resetPasswordService } = await import('@/src/modules/auth/auth.service');
