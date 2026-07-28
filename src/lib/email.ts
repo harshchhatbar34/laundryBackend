@@ -336,11 +336,11 @@ export const sendOwnerSetupEmail = async (
     <p style="margin:0 0 6px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#111111;">Dear ${name},</p>
 
     <p style="margin:16px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
-      Your shop owner account for <strong>${laundryName}</strong> has been created on the <strong>${appName}</strong> platform.
+      Congratulations! Your registration as a Laundry Shop Owner for <strong>${laundryName}</strong> on <strong>${appName}</strong> has been successful.
     </p>
 
     <p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#333333;line-height:1.6;">
-      Please click the button below to set your password and activate your account:
+      To complete your setup and create your password, please click the button below:
     </p>
 
     <!-- Setup button -->
@@ -349,7 +349,7 @@ export const sendOwnerSetupEmail = async (
         <td align="center">
           <a href="${setupLink}" target="_blank"
              style="display:inline-block;background:#1B2B4B;color:#ffffff;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;padding:14px 40px;border-radius:3px;letter-spacing:0.5px;">
-            Set Up My Account
+            Set Your Password
           </a>
         </td>
       </tr>
@@ -357,7 +357,7 @@ export const sendOwnerSetupEmail = async (
 
     <!-- Fallback URL -->
     <p style="margin:0 0 4px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#999999;">
-      If the button does not work, copy and paste the link below into your browser:
+      If the button above does not work, copy and paste the following link into your web browser:
     </p>
     <p style="margin:0 0 20px 0;font-family:'Courier New',Courier,monospace;font-size:12px;color:#1B2B4B;word-break:break-all;">${setupLink}</p>
 
@@ -365,7 +365,7 @@ export const sendOwnerSetupEmail = async (
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
       <tr>
         <td style="background:#f8f8f8;border-left:3px solid #1B2B4B;padding:12px 16px;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#555555;line-height:1.6;">
-          <strong>Note:</strong> This setup link opens a web page where you can configure your password. Once set, you can sign in directly via the ${appName} mobile app.
+          <strong>Note:</strong> Once you set your password, you can sign in to manage your shop using the ${appName} mobile app or web portal.
         </td>
       </tr>
     </table>
@@ -383,7 +383,7 @@ export const sendOwnerSetupEmail = async (
 
   return sendEmail({
     to,
-    subject: `Set Up Your ${appName} Owner Account — ${laundryName}`,
-    html: wrap(appName, `Set up your ${laundryName} owner account on ${appName}.`, body),
+    subject: `Registration Successful — Set Up Password for ${laundryName}`,
+    html: wrap(appName, `Registration successful for ${laundryName}. Set your password to get started.`, body),
   });
 };
