@@ -495,21 +495,24 @@ export const helperUpdateOrderStatus = async (
   await order.save();
 
   const statusMessages: Partial<Record<OrderStatus, string>> = {
-    pickup: 'Helper is on the way to pick up your clothes.',
-    picked_up: 'Your clothes have been picked up. Processing will begin shortly.',
-    processing: 'Your laundry is being processed.',
-    ready: 'Your laundry is ready for delivery.',
-    out_for_delivery: '🚚 Your laundry is out for delivery!',
+    pickup: 'Helper is on the way to pick up your order.',
+    picked_up: 'Your order has been picked up. Processing will begin shortly.',
+    processing: 'Your order is being processed.',
+    ready: 'Your order is ready for delivery.',
+    out_for_delivery: '🚚 Your order is out for delivery!',
     failed_delivery: 'Delivery attempt failed. Please reschedule your delivery.',
-    delivered: '✅ Your laundry has been delivered. Thank you!',
+    delivered: '✅ Your order has been delivered. Thank you!',
   };
 
-  await createNotification(order.customer, {
-    title: `Order ${order.orderNumber} Update`,
-    body: note ?? statusMessages[status] ?? `Your order is now: ${status}`,
-    type: 'order',
-    refId: order._id as Types.ObjectId,
-  });
+  // Send notification for delivered status, but do NOT send notification after delivered (on completed status)
+  if (status !== 'completed') {
+    await createNotification(order.customer, {
+      title: `Order ${order.orderNumber} Update`,
+      body: note ?? statusMessages[status] ?? `Your order is now: ${status}`,
+      type: 'order',
+      refId: order._id as Types.ObjectId,
+    });
+  }
 
   return order.populate(['address', 'items.material', 'items.item', 'items.service', 'customer']);
 };
