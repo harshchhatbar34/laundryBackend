@@ -8,6 +8,14 @@ const serviceSchema = new Schema<IService>(
     description: { type: String, trim: true, default: '' },
     icon: { type: String, default: '👕' },
     price: { type: Number, default: 0 },
+    discount: { type: Number, default: 0, min: 0 },
+    items: [
+      {
+        item: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
+        price: { type: Number, required: true, default: 0 },
+        isActive: { type: Boolean, default: true },
+      },
+    ],
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
     branches: [{ type: Schema.Types.ObjectId, ref: 'Branch' }],

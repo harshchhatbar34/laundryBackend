@@ -4,9 +4,26 @@ import type { Types } from 'mongoose';
 
 // ─── Profile ────────────────────────────────────────────────────────────────
 
+export const generateReferralCode = async (): Promise<string> => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const exists = await User.exists({ referralCode: code });
+    if (!exists) return code;
+  }
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+};
+
 export const getProfile = async (userId: Types.ObjectId | string) => {
   const user = await User.findById(userId);
   if (!user) throw Object.assign(new Error('User not found'), { statusCode: 404 });
+  if (!user.referralCode) {
+    user.referralCode = await generateReferralCode();
+    await user.save();
+  }
   return user;
 };
 

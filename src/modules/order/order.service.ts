@@ -51,7 +51,7 @@ const mapStatusFilter = (status?: string): any => {
 // ─── Pricing Calculator ───────────────────────────────────────────────────────
 
 const calculatePricing = async (
-  items: { material: string; item: string; service: string; quantity: number }[],
+  items: { material?: string; item: string; service: string; quantity: number }[],
   couponCode?: string
 ) => {
   let subtotal = 0;
@@ -65,15 +65,30 @@ const calculatePricing = async (
 
     const [serviceDoc, materialDoc, itemDoc] = await Promise.all([
       Service.findById(serviceId),
-      Material.findById(materialId),
+      materialId ? Material.findById(materialId) : null,
       Item.findById(itemId),
     ]);
 
-    if (!serviceDoc || !materialDoc || !itemDoc) {
-      throw Object.assign(new Error('Invalid service, material, or item in cart.'), { statusCode: 400 });
+    if (!serviceDoc || !itemDoc) {
+      throw Object.assign(new Error('Invalid service or item in cart.'), { statusCode: 400 });
     }
 
-    const unitPrice = (serviceDoc.price || 0) + (materialDoc.price || 0) + (itemDoc.price || 0);
+    // Look up per-item price configuration inside serviceDoc.items
+    let unitPrice = 0;
+    const serviceItemConfig = serviceDoc.items?.find(
+      (si: any) => (si.item?._id || si.item).toString() === itemId.toString()
+    );
+
+    if (serviceItemConfig && serviceItemConfig.price != null) {
+      unitPrice = serviceItemConfig.price;
+    } else {
+      unitPrice = itemDoc.price || 0;
+    }
+
+    if ((serviceDoc as any).discount && (serviceDoc as any).discount > 0) {
+      unitPrice = Math.max(0, Math.round(unitPrice * (1 - (serviceDoc as any).discount / 100)));
+    }
+
     const lineTotal = unitPrice * orderItem.quantity;
     
     subtotal += lineTotal;

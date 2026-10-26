@@ -33,6 +33,18 @@ const userSchema = new Schema<IUser>(
     otpCode: { type: String, default: null },
     otpExpiry: { type: Date, default: null },
     isEmailVerified: { type: Boolean, default: false },
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      uppercase: true,
+      trim: true,
+    },
+    referredBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
 

@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/reset-password',
   '/api/auth/set-password',
   '/api/admin-auth/login',
+  '/api/debug-log',
 ];
 
 // ─── Admin public pages (no cookie required) ─────────────────────────────────
@@ -25,11 +26,25 @@ function isAdminPublicPage(pathname: string): boolean {
 }
 
 // ─── Helper: CORS headers ─────────────────────────────────────────────────────
-function applyCorsHeaders(response: NextResponse): NextResponse {
-  response.headers.set('Access-Control-Allow-Origin', '*');
+// ─── Helper: CORS headers ─────────────────────────────────────────────────────
+function applyCorsHeaders(response: NextResponse, req?: NextRequest): NextResponse {
+  const requestOrigin = req?.headers.get('origin');
+  // Reflect origin when present to satisfy Access-Control-Allow-Credentials, fallback to '*'
+  const allowedOrigin = requestOrigin || '*';
+  response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
+  response.headers.set('Access-Control-Allow-Credentials', 'true');
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Tenant-Code');
   return response;
+}
+
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET || process.env.JWT_SECRET_KEY;
+  if (!secret) {
+    console.error('[CRITICAL SECURITY RISK] JWT_SECRET environment variable is not configured');
+    throw new Error('Server configuration error: JWT_SECRET missing');
+  }
+  return new TextEncoder().encode(secret);
 }
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
@@ -43,7 +58,7 @@ export async function middleware(req: NextRequest) {
 
   // ── Handle CORS preflight (OPTIONS) — only for /api/* ──────────────────────
   if (req.method === 'OPTIONS' && pathname.startsWith('/api/')) {
-    return applyCorsHeaders(new NextResponse(null, { status: 200 }));
+    return applyCorsHeaders(new NextResponse(null, { status: 200 }), req);
   }
 
   // ════════════════════════════════════════════════════════════
@@ -62,7 +77,7 @@ export async function middleware(req: NextRequest) {
     }
 
     try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+      const secret = getJwtSecret();
       const { payload } = await jwtVerify(adminToken, secret);
 
       if (payload['role'] !== 'superadmin') {
@@ -85,7 +100,7 @@ export async function middleware(req: NextRequest) {
 
   // Skip auth check for public routes
   if (isPublicRoute(pathname)) {
-    return applyCorsHeaders(NextResponse.next());
+    return applyCorsHeaders(NextResponse.next(), req);
   }
 
   // ── For /api/superadmin/* also accept admin_token cookie (used by admin UI) ──
@@ -93,14 +108,14 @@ export async function middleware(req: NextRequest) {
     const adminToken = req.cookies.get('admin_token')?.value;
     if (adminToken) {
       try {
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+        const secret = getJwtSecret();
         const { payload } = await jwtVerify(adminToken, secret);
         if (payload['role'] === 'superadmin') {
           const requestHeaders = new Headers(req.headers);
           requestHeaders.set('x-user-id', payload['id'] as string);
           requestHeaders.set('x-user-role', payload['role'] as string);
           const response = NextResponse.next({ request: { headers: requestHeaders } });
-          return applyCorsHeaders(response);
+          return applyCorsHeaders(response, req);
         }
       } catch {
         // fall through to Bearer token check below
@@ -116,14 +131,15 @@ export async function middleware(req: NextRequest) {
       NextResponse.json(
         { success: false, message: 'Unauthorized: No token provided', errors: [] },
         { status: 401 }
-      )
+      ),
+      req
     );
   }
 
   const token = authHeader.split(' ')[1];
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET);
+    const secret = getJwtSecret();
     const { payload } = await jwtVerify(token, secret);
 
     const requestHeaders = new Headers(req.headers);
@@ -131,7 +147,7 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set('x-user-role', payload['role'] as string);
 
     const response = NextResponse.next({ request: { headers: requestHeaders } });
-    return applyCorsHeaders(response);
+    return applyCorsHeaders(response, req);
 
   } catch (err: unknown) {
     const isExpired = err instanceof Error && err.message.includes('exp');
@@ -145,7 +161,8 @@ export async function middleware(req: NextRequest) {
           errors: [],
         },
         { status: 401 }
-      )
+      ),
+      req
     );
   }
 }

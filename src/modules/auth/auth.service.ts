@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import jwt, { type SignOptions } from 'jsonwebtoken';
 import User from '../user/user.model';
 import Tenant from '../tenant/tenant.model';
+import { generateReferralCode } from '../user/user.service';
 import type { UserRole } from '@/types';
 import { sendWelcomeEmail, sendPasswordResetEmail, sendOtpEmail } from '../../lib/email';
 import { logger } from '@/lib/logger';
@@ -31,15 +32,28 @@ export const registerCustomer = async (body: {
   name: string;
   email: string;
   password: string;
-  tenantCode: string;
+  tenantCode?: string;
   mobileNumber?: string;
+  referralCode?: string;
 }) => {
-  const { name, email, password, tenantCode, mobileNumber } = body;
+  const { name, email, password, tenantCode, mobileNumber, referralCode } = body;
 
-  // Validate tenant code
-  const tenant = await Tenant.findOne({ tenantCode: tenantCode.toUpperCase(), isActive: true });
-  if (!tenant) {
-    throw Object.assign(new Error('Invalid shop code. Please check and try again.'), { statusCode: 400 });
+  // Validate tenant code if provided
+  let tenant = null;
+  if (tenantCode) {
+    tenant = await Tenant.findOne({ tenantCode: tenantCode.toUpperCase(), isActive: true });
+    if (!tenant) {
+      throw Object.assign(new Error('Invalid shop code. Please check and try again.'), { statusCode: 400 });
+    }
+  }
+
+  // Validate referral code if provided
+  let referrer = null;
+  if (referralCode && referralCode.trim()) {
+    referrer = await User.findOne({ referralCode: referralCode.trim().toUpperCase() });
+    if (!referrer) {
+      throw Object.assign(new Error('Invalid referral code. Please check and try again.'), { statusCode: 400 });
+    }
   }
 
   const existing = await User.findOne({ email });
@@ -52,7 +66,13 @@ export const registerCustomer = async (body: {
       existing.name = name;
       existing.password = hashedPassword;
       existing.mobileNumber = mobileNumber || null;
-      existing.tenantId = tenant._id;
+      existing.tenantId = tenant ? tenant._id : null;
+      if (!existing.referralCode) {
+        existing.referralCode = await generateReferralCode();
+      }
+      if (referrer && !existing.referredBy) {
+        existing.referredBy = referrer._id;
+      }
       existing.otpCode = hashOtp(otp);
       existing.otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
       await existing.save();
@@ -76,6 +96,7 @@ export const registerCustomer = async (body: {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const otp = generateOtp();
+  const myReferralCode = await generateReferralCode();
 
   const user = await User.create({
     name,
@@ -83,7 +104,9 @@ export const registerCustomer = async (body: {
     password: hashedPassword,
     mobileNumber: mobileNumber || null,
     role: 'customer',
-    tenantId: tenant._id,
+    tenantId: tenant ? tenant._id : null,
+    referralCode: myReferralCode,
+    referredBy: referrer ? referrer._id : null,
     isEmailVerified: false,
     otpCode: hashOtp(otp),
     otpExpiry: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
@@ -130,10 +153,13 @@ export const verifyOtpService = async (userId: string, otp: string) => {
   user.isEmailVerified = true;
   user.otpCode = undefined;
   user.otpExpiry = undefined;
+  if (!user.referralCode) {
+    user.referralCode = await generateReferralCode();
+  }
   await user.save();
 
   // Fetch tenant name for welcome email
-  const tenant = await Tenant.findById(user.tenantId);
+  const tenant = user.tenantId ? await Tenant.findById(user.tenantId) : null;
   const shopName = tenant?.laundryName || process.env.APP_NAME || 'Qwasho';
 
   logger.info(`[AUTH_OTP] ✅ OTP verified → userId=${userId} email=${user.email}`);
@@ -191,7 +217,8 @@ export const resendOtpService = async (userId: string) => {
  * Login for all roles.
  */
 export const loginService = async (email: string, password: string) => {
-  const user = await User.findOne({ email });
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
   if (!user) {
     throw Object.assign(new Error('Invalid email or password.'), { statusCode: 401 });
   }
@@ -204,6 +231,10 @@ export const loginService = async (email: string, password: string) => {
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     throw Object.assign(new Error('Invalid email or password.'), { statusCode: 401 });
+  }
+  if (!user.referralCode) {
+    user.referralCode = await generateReferralCode();
+    await user.save();
   }
   const token = generateToken(String(user._id), user.role);
   return { token, user };

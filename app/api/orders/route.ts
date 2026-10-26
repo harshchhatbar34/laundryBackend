@@ -38,13 +38,20 @@ export const POST = withAuth(async (req: NextRequest, ctx: AuthContext) => {
       return sendError(400, 'branchId, items, addressId, and scheduledPickup are required');
     }
 
-    // Fetch customer's tenantId for order isolation
+    // Resolve tenantId: prefer customer's tenantId if bound, or resolve from selected branch
     const customer = await User.findById(ctx.user._id);
-    if (!customer?.tenantId) {
-      return sendError(403, 'Account is not linked to any laundry service.');
+    let tenantId = customer?.tenantId;
+    if (!tenantId) {
+      const Branch = (await import('@/src/modules/branch/branch.model')).default;
+      const branch = await Branch.findById(body.branchId);
+      tenantId = branch?.tenant;
     }
 
-    const order = await createOrder(ctx.user._id, customer.tenantId, body);
+    if (!tenantId) {
+      return sendError(400, 'Could not determine laundry provider for this branch.');
+    }
+
+    const order = await createOrder(ctx.user._id, tenantId, body);
     return sendSuccess(201, 'Order placed successfully', { order });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

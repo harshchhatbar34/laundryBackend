@@ -8,6 +8,7 @@ node_modules/
 dist/
 .env
 .next
+*.tsbuildinfo
 
 # Compiled Java class files
 *.class

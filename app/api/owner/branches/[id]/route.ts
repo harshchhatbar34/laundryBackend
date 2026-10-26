@@ -5,12 +5,18 @@ import { withRole } from '@/lib/auth';
 import { updateBranch } from '@/src/modules/branch/branch.service';
 import type { AuthContext } from '@/types';
 
-// PATCH /api/owner/branches/[id] — update branch details
+// PATCH /api/owner/branches/[id] — update branch details or disabledItems
 export const PATCH = withRole('owner')(async (req: NextRequest, ctx: AuthContext & { params: { id: string } }) => {
   try {
     await connectDB();
     const body = await req.json();
-    const branch = await updateBranch(ctx.params.id, ctx.user._id, body);
+    let branch;
+    if (Array.isArray(body.disabledItems)) {
+      const { updateBranchDisabledItems } = await import('@/src/modules/branch/branch.service');
+      branch = await updateBranchDisabledItems(ctx.params.id, ctx.user._id, body.disabledItems);
+    } else {
+      branch = await updateBranch(ctx.params.id, ctx.user._id, body);
+    }
     return sendSuccess(200, 'Branch updated', { branch });
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

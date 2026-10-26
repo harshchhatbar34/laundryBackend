@@ -16,6 +16,7 @@ const branchSchema = new Schema<IBranch>(
     },
     // LIVE = shop is open and accepting orders; CLOSED = not accepting
     isLive: { type: Boolean, default: false },
+    disabledItems: [{ type: Schema.Types.ObjectId, ref: 'Item' }],
   },
   { timestamps: true }
 );

@@ -99,8 +99,42 @@ export const updateBranch = async (
 };
 
 /**
- * Toggle branch LIVE / CLOSED status.
+ * Toggle/update disabled items for a specific branch.
  */
+export const updateBranchDisabledItems = async (
+  branchId: string,
+  ownerId: Types.ObjectId | string,
+  disabledItems: string[]
+) => {
+  const branch = await Branch.findOneAndUpdate(
+    { _id: branchId, owner: ownerId },
+    { $set: { disabledItems } },
+    { new: true }
+  );
+  if (!branch) throw Object.assign(new Error('Branch not found'), { statusCode: 404 });
+  return branch;
+};
+
+/**
+ * Delete branch.
+ */
+export const deleteBranch = async (branchId: string, ownerId: Types.ObjectId | string) => {
+  const branch = await Branch.findOneAndDelete({ _id: branchId, owner: ownerId });
+  if (!branch) throw Object.assign(new Error('Branch not found'), { statusCode: 404 });
+  return branch;
+};
+
+/**
+ * Toggle branch isLive status.
+ */
+export const toggleBranchLiveStatus = async (branchId: string, ownerId: Types.ObjectId | string) => {
+  const branch = await Branch.findOne({ _id: branchId, owner: ownerId });
+  if (!branch) throw Object.assign(new Error('Branch not found'), { statusCode: 404 });
+  branch.isLive = !branch.isLive;
+  await branch.save();
+  return branch;
+};
+
 export const toggleBranchStatus = async (
   branchId: string,
   ownerId: Types.ObjectId | string,

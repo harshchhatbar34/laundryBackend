@@ -38,11 +38,12 @@ export const GET = withAuth(async (req: NextRequest, ctx: AuthContext) => {
       tenantId = tenant._id;
     }
 
-    if (!tenantId) return sendError(400, 'tenantCode is required');
+    const branchFilter: Record<string, any> = { isLive: true };
+    if (tenantId) branchFilter.tenant = tenantId;
 
-    // Fetch all branches of the tenant sorted from near to far using geospatial $near query
+    // Fetch all live branches (optionally scoped by tenant) sorted near to far
     const branches = await Branch.find({
-      tenant: tenantId,
+      ...branchFilter,
       location: {
         $near: {
           $geometry: { type: 'Point', coordinates: [lng, lat] },

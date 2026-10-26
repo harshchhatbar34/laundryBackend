@@ -8,13 +8,13 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const body = await req.json();
-    const { name, email, password, tenantCode, mobileNumber } = body;
+    const { name, email, password, tenantCode, mobileNumber, referralCode } = body;
 
-    if (!name || !email || !password || !tenantCode) {
-      return sendError(400, 'name, email, password, and tenantCode are required');
+    if (!name || !email || !password) {
+      return sendError(400, 'name, email, and password are required');
     }
 
-    const result = await registerCustomer({ name, email, password, tenantCode, mobileNumber });
+    const result = await registerCustomer({ name, email, password, tenantCode, mobileNumber, referralCode });
     return sendSuccess(201, 'Account created successfully', result);
   } catch (err: unknown) {
     const e = err as { message?: string; statusCode?: number };

@@ -59,6 +59,8 @@ export interface IUser extends Document {
   otpCode?: string;           // SHA-256 hashed OTP
   otpExpiry?: Date;           // OTP expiry time
   isEmailVerified: boolean;   // true once OTP is verified
+  referralCode?: string;      // unique 6-character alphanumeric code
+  referredBy?: Types.ObjectId | null; // User who referred this account
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,7 +119,14 @@ export interface IBranch extends Document {
     coordinates: [number, number]; // [lng, lat]
   };
   isLive: boolean;         // LIVE or CLOSED toggle
+  disabledItems?: Types.ObjectId[]; // Items disabled for this specific branch
   createdAt: Date;
+}
+
+export interface IServiceItemConfig {
+  item: Types.ObjectId;
+  price: number;
+  isActive?: boolean;
 }
 
 // ─── Service ─────────────────────────────────────────────────────────────────
@@ -128,6 +137,8 @@ export interface IService extends Document {
   description: string;
   icon: string;            // emoji or icon key
   price: number;
+  discount?: number;
+  items?: IServiceItemConfig[];
   isActive: boolean;
   sortOrder: number;
   branches?: Types.ObjectId[];

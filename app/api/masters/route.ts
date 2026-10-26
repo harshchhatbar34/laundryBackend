@@ -17,16 +17,25 @@ export const GET = withAuth(async (_req: NextRequest, ctx: AuthContext) => {
       return sendError(404, 'User not found');
     }
     
-    if (!userDoc.tenantId) {
-      return sendError(400, 'User is not associated with any tenant');
-    }
-
     const url = new URL(_req.url);
     const branchId = url.searchParams.get('branchId') || undefined;
 
+    let tenantId = userDoc.tenantId;
+    if (!tenantId && branchId) {
+      const Branch = (await import('@/src/modules/branch/branch.model')).default;
+      const branch = await Branch.findById(branchId);
+      tenantId = branch?.tenant;
+    }
+
+    if (!tenantId) {
+      const Item = (await import('@/src/modules/service/item.model')).default;
+      const items = await Item.find({ isActive: true }).sort({ name: 1 });
+      return sendSuccess(200, 'Masters fetched', { materials: [], items });
+    }
+
     const [materials, items] = await Promise.all([
-      getOwnerMaterials(userDoc.tenantId, true, branchId),
-      getOwnerItems(userDoc.tenantId, true, branchId),
+      getOwnerMaterials(tenantId, true, branchId),
+      getOwnerItems(tenantId, true, branchId),
     ]);
 
     return sendSuccess(200, 'Masters fetched', { materials, items });

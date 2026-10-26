@@ -5,11 +5,28 @@ import Item from './item.model';
 
 // ─── Services ────────────────────────────────────────────────────────────────
 
-export const getOwnerServices = (tenantId: string | Types.ObjectId, activeOnly = true, branchId?: string) => {
+export const getOwnerServices = async (tenantId: string | Types.ObjectId, activeOnly = true, branchId?: string) => {
   const query: any = { tenant: tenantId };
   if (activeOnly) query.isActive = true;
   if (branchId) query.branches = branchId;
-  return Service.find(query).sort({ sortOrder: 1, name: 1 });
+  const services = await Service.find(query).populate('items.item').sort({ sortOrder: 1, name: 1 });
+
+  if (branchId) {
+    const Branch = mongoose.model('Branch');
+    const branchDoc = await Branch.findById(branchId);
+    if (branchDoc && branchDoc.disabledItems?.length > 0) {
+      const disabledIds = new Set(branchDoc.disabledItems.map((id: any) => id.toString()));
+      return services.map((svc) => {
+        const doc = svc.toObject();
+        if (doc.items?.length) {
+          doc.items = doc.items.filter((si: any) => !si.item || !disabledIds.has((si.item._id || si.item).toString()));
+        }
+        return doc;
+      });
+    }
+  }
+
+  return services;
 };
 
 export const createService = async (
@@ -19,6 +36,8 @@ export const createService = async (
     description?: string; 
     icon?: string; 
     price?: number; 
+    discount?: number;
+    items?: { item: string; price: number }[];
     sortOrder?: number;
     isAllBranches?: boolean;
     branches?: string[];
@@ -47,6 +66,8 @@ export const updateService = async (
     description: string; 
     icon: string; 
     price: number; 
+    discount: number;
+    items: { item: string; price: number }[];
     sortOrder: number; 
     isActive: boolean;
     isAllBranches: boolean;
@@ -59,7 +80,7 @@ export const updateService = async (
     const list = await Branch.find({ tenant: tenantId }, '_id');
     updates.branches = list.map((b: any) => b._id.toString());
   }
-  const svc = await Service.findOneAndUpdate({ _id: id, tenant: tenantId }, { $set: updates }, { new: true, runValidators: true });
+  const svc = await Service.findOneAndUpdate({ _id: id, tenant: tenantId }, { $set: updates }, { new: true, runValidators: true }).populate('items.item');
   if (!svc) throw Object.assign(new Error('Service not found'), { statusCode: 404 });
   return svc;
 };
