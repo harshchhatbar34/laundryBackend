@@ -92,7 +92,16 @@ const calculatePricing = async (
     const lineTotal = unitPrice * orderItem.quantity;
     
     subtotal += lineTotal;
-    processedItems.push({ ...orderItem, price: unitPrice });
+    const processedItem: any = {
+      service: serviceId,
+      item: itemId,
+      quantity: orderItem.quantity,
+      price: unitPrice,
+    };
+    if (materialId) {
+      processedItem.material = materialId;
+    }
+    processedItems.push(processedItem);
   }
 
   let discount = 0;
@@ -135,7 +144,7 @@ export const createOrder = async (
   tenantId: Types.ObjectId | string,
   body: {
     branchId: string;
-    items: { material: string; item: string; service: string; quantity: number }[];
+    items: { material?: string; item: string; service: string; quantity: number }[];
     addressId: string;
     scheduledPickup: { date: string; slot: string };
     couponCode?: string;
@@ -537,7 +546,7 @@ export const helperUpdateOrderStatus = async (
 export const helperUpdateBill = async (
   orderId: string,
   helperId: Types.ObjectId | string,
-  items: { material: string; item: string; service: string; quantity: number }[],
+  items: { material?: string; item: string; service: string; quantity: number }[],
   userRole?: string
 ) => {
   let order;

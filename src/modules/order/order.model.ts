@@ -4,7 +4,7 @@ import { ORDER_STATUSES } from '@/types';
 
 const orderItemSchema = new Schema(
   {
-    material: { type: Schema.Types.ObjectId, ref: 'Material', required: true },
+    material: { type: Schema.Types.ObjectId, ref: 'Material', required: false, default: null },
     item: { type: Schema.Types.ObjectId, ref: 'Item', required: true },
     service: { type: Schema.Types.ObjectId, ref: 'Service', required: true },
     quantity: { type: Number, required: true, min: 1 },

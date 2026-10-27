@@ -183,7 +183,7 @@ export interface ICoupon extends Document {
 
 // ─── Order Item ───────────────────────────────────────────────────────────────
 export interface IOrderItem {
-  material: Types.ObjectId;
+  material?: Types.ObjectId | null;
   item: Types.ObjectId;
   service: Types.ObjectId;
   quantity: number;
