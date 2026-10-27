@@ -115,5 +115,8 @@ orderSchema.pre('save', async function (this: any, next) {
   next();
 });
 
-const Order = mongoose.models.Order ?? mongoose.model<IOrder>('Order', orderSchema);
+if (mongoose.models.Order) {
+  delete (mongoose.models as any).Order;
+}
+const Order = mongoose.model<IOrder>('Order', orderSchema);
 export default Order;
